@@ -1,13 +1,13 @@
 # Nexus Downloader
 
-A powerful, user-friendly desktop application for downloading videos from TikTok, Facebook, and YouTube with advanced features like batch downloads, progress tracking, and quality selection.
+A powerful, user-friendly desktop application for downloading videos from YouTube, TikTok, Facebook, and Bilibili with advanced features like batch downloads, progress tracking, and quality selection.
 
 ![GitHub Release](https://img.shields.io/github/v/release/khanhnv219/nexus-downloader)
 ![GitHub License](https://img.shields.io/github/license/khanhnv219/nexus-downloader)
 
 ## Features
 
-- 🎬 **Multi-Platform Support**: Download from TikTok, Facebook, and YouTube
+- 🎬 **Multi-Platform Support**: Download from YouTube, TikTok, Facebook, and Bilibili
 - 📦 **Batch Downloads**: Process multiple URLs at once
 - 📊 **Real-time Progress**: Visual progress bars and status updates
 - 🎯 **Quality Selection**: Choose your preferred video resolution

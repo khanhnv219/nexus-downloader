@@ -27,6 +27,7 @@ from nexus_downloader.core.download_manager import DownloadManager
 from nexus_downloader.ui.settings_dialog import SettingsDialog
 from nexus_downloader.services.settings_service import SettingsService, AppSettings # Import SettingsService and AppSettings
 from nexus_downloader.core.data_models import DownloadStatus, DownloadItem
+from nexus_downloader.core.url_validator import URLValidator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -311,6 +312,10 @@ class MainWindow(QMainWindow):
         """
         url = self.url_input.text()
         if url:
+            if not URLValidator.is_valid_url(url):
+                QMessageBox.warning(self, "Invalid URL", "The entered URL is not supported.")
+                return
+
             self._set_fetch_button_loading_state(True)
             self.download_manager.start_fetch_job(url, self.app_settings.facebook_cookies_path)
 

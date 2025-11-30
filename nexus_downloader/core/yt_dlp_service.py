@@ -33,12 +33,54 @@ class YtDlpService:
                 info = ydl.extract_info(url, download=False)
                 if 'entries' in info:
                     # It's a playlist
-                    return info['entries'], None
+                    entries = list(info['entries']) # Convert to list if it's a generator
+                    # Propagate playlist title/thumbnail to entries if missing (common for Bilibili with extract_flat)
+                    for entry in entries:
+                        if not entry.get('title') and info.get('title'):
+                            entry['title'] = info.get('title')
+                        if not entry.get('thumbnail') and info.get('thumbnail'):
+                            entry['thumbnail'] = info.get('thumbnail')
+                    return entries, None
                 else:
                     # It's a single video
                     return [info], None
         except yt_dlp.utils.DownloadError as e:
-            return None, str(e)
+            return None, self._format_error_message(url, str(e))
+    
+    def _format_error_message(self, url: str, error_msg: str) -> str:
+        """
+        Formats error messages with platform-specific context.
+        
+        Args:
+            url (str): The URL that caused the error.
+            error_msg (str): The original error message.
+            
+        Returns:
+            str: A user-friendly error message.
+        """
+        error_lower = error_msg.lower()
+        
+        # Detect Bilibili URLs
+        is_bilibili = 'bilibili.com' in url or 'b23.tv' in url
+        
+        if is_bilibili:
+            if 'geo-restrict' in error_lower or 'not available in your region' in error_lower:
+                return "This Bilibili video is not available in your region. You may need to use a VPN or proxy."
+            elif 'deleted' in error_lower:
+                return "This Bilibili video may have been deleted or is no longer available."
+            elif 'private' in error_lower or 'members-only' in error_lower:
+                return ("This Bilibili video requires authentication. "
+                        "Please refer to the documentation for cookie setup.")
+        
+        # Generic error messages
+        if 'network' in error_lower or 'connection' in error_lower:
+            return f"Failed to fetch video. Check your internet connection. Details: {error_msg}"
+        elif 'invalid' in error_lower or 'not found' in error_lower:
+            return f"Invalid or unavailable video URL. Details: {error_msg}"
+        
+        # Return original error if no specific pattern matched
+        return error_msg
+
 
     def download_video(self, video_url, download_folder_path, video_resolution="best", progress_hook=None, cookies_file=None):
         """
@@ -68,6 +110,6 @@ class YtDlpService:
                 ydl.download([video_url])
             return True, None
         except yt_dlp.utils.DownloadError as e:
-            return False, str(e)
+            return False, self._format_error_message(video_url, str(e))
         except Exception as e:
             return False, f"An unexpected error occurred: {str(e)}"
