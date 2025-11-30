@@ -24,7 +24,8 @@ class YtDlpService:
             'quiet': True,
             'no_warnings': True,
             'skip_download': True,
-            'extract_flat': 'in_playlist'
+            # DO NOT use 'extract_flat' here as it breaks single video metadata
+            # Single videos need full metadata extraction to work properly
         }
         if cookies_file:
             ydl_opts['cookiefile'] = cookies_file
@@ -34,12 +35,8 @@ class YtDlpService:
                 if 'entries' in info:
                     # It's a playlist
                     entries = list(info['entries']) # Convert to list if it's a generator
-                    # Propagate playlist title/thumbnail to entries if missing (common for Bilibili with extract_flat)
-                    for entry in entries:
-                        if not entry.get('title') and info.get('title'):
-                            entry['title'] = info.get('title')
-                        if not entry.get('thumbnail') and info.get('thumbnail'):
-                            entry['thumbnail'] = info.get('thumbnail')
+                    # Note: Without extract_flat, entries will have full metadata
+                    # No need to propagate from parent playlist
                     return entries, None
                 else:
                     # It's a single video
@@ -96,8 +93,20 @@ class YtDlpService:
         Returns:
             tuple: (True, None) on success, (False, error_message) on failure.
         """
+        # Handle Bilibili format restrictions
+        # Bilibili's "best" quality may require premium membership
+        # Use a fallback format string that selects best available non-premium quality
+        is_bilibili = 'bilibili.com' in video_url or 'b23.tv' in video_url
+        
+        if is_bilibili and video_resolution == "best":
+            # Use format that selects best available format without requiring premium
+            # This allows yt-dlp to fallback to lower quality if best is premium-only
+            format_string = "bestvideo+bestaudio/best"
+        else:
+            format_string = video_resolution
+        
         ydl_opts = {
-            'format': video_resolution,
+            'format': format_string,
             'outtmpl': f'{download_folder_path}/%(title)s.%(ext)s',
             'noplaylist': True, # Ensure only single video is downloaded
             'progress_hooks': [progress_hook] if progress_hook else [],

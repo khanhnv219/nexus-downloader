@@ -384,7 +384,10 @@ class MainWindow(QMainWindow):
                     self.select_all_checkbox.blockSignals(False)
 
                 title = video_info.get('title', 'Unknown Title')
-                video_url = video_info.get('url', '')
+                # Try multiple field names for video URL
+                # Single videos use 'webpage_url' or 'original_url'
+                # Playlist entries use 'url'
+                video_url = video_info.get('webpage_url') or video_info.get('url') or video_info.get('original_url', '')
                 title_item = QTableWidgetItem(title)
                 title_item.setData(Qt.UserRole, video_url)
                 self.download_table.setItem(row_position, 1, title_item)
