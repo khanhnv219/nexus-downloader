@@ -17,6 +17,7 @@ A powerful, user-friendly desktop application for downloading videos from YouTub
 - 🧹 **List Management**: Clear completed or all downloads with one click
 - ⚙️ **Cookie Support**: Use browser cookies for private/restricted videos
 - 🎨 **Modern UI**: Clean, dark-themed interface built with PySide6
+- **Bilibili**: Download single videos, user spaces (channels), and collections (playlists).
 
 ## Installation
 
@@ -138,4 +139,4 @@ If you encounter any issues or have questions, please open an issue on the [GitH
 
 ---
 
-Made with ❤️ by [khanhnv219](https://github.com/khanhnv219)
+Made with ❤️ by [Khanh Nguyen](https://github.com/khanhnv219)

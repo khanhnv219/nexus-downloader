@@ -66,8 +66,13 @@ class YtDlpService:
             elif 'deleted' in error_lower:
                 return "This Bilibili video may have been deleted or is no longer available."
             elif 'private' in error_lower or 'members-only' in error_lower:
-                return ("This Bilibili video requires authentication. "
+                return ("This Bilibili video or collection requires authentication. "
                         "Please refer to the documentation for cookie setup.")
+            elif 'too many requests' in error_lower or '412' in error_lower:
+                return ("Too many requests. Bilibili may be rate limiting. "
+                        "Please wait a few minutes and try again.")
+            elif 'empty' in error_lower and 'playlist' in error_lower:
+                return "The Bilibili collection or user space appears to be empty."
         
         # Generic error messages
         if 'network' in error_lower or 'connection' in error_lower:

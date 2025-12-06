@@ -11,6 +11,8 @@ class URLValidator:
     # Bilibili patterns
     BILIBILI_VIDEO_PATTERN = r'https?://(?:www\.)?bilibili\.com/video/BV[a-zA-Z0-9]+'
     BILIBILI_SHORT_PATTERN = r'https?://b23\.tv/[a-zA-Z0-9]+'
+    BILIBILI_SPACE_PATTERN = r'https?://space\.bilibili\.com/\d+'
+    BILIBILI_COLLECTION_PATTERN = r'https?://(?:www\.)?bilibili\.com/medialist/play/\d+'
     
     # Existing platforms (for completeness, though not strictly required by story, good to have)
     YOUTUBE_PATTERN = r'https?://(?:www\.)?(?:youtube\.com|youtu\.be)/.+'
@@ -29,7 +31,9 @@ class URLValidator:
             bool: True if the URL matches Bilibili patterns, False otherwise.
         """
         if re.match(URLValidator.BILIBILI_VIDEO_PATTERN, url) or \
-           re.match(URLValidator.BILIBILI_SHORT_PATTERN, url):
+           re.match(URLValidator.BILIBILI_SHORT_PATTERN, url) or \
+           re.match(URLValidator.BILIBILI_SPACE_PATTERN, url) or \
+           re.match(URLValidator.BILIBILI_COLLECTION_PATTERN, url):
             return True
         return False
 

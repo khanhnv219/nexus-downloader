@@ -17,6 +17,16 @@ class TestURLValidator:
         url = "https://b23.tv/av123456"
         assert URLValidator.is_bilibili_url(url) is True
 
+    def test_is_bilibili_url_valid_space(self):
+        """Test valid Bilibili user space URL."""
+        url = "https://space.bilibili.com/1234567"
+        assert URLValidator.is_bilibili_url(url) is True
+
+    def test_is_bilibili_url_valid_collection(self):
+        """Test valid Bilibili collection URL."""
+        url = "https://www.bilibili.com/medialist/play/123456"
+        assert URLValidator.is_bilibili_url(url) is True
+
     def test_is_bilibili_url_invalid(self):
         """Test invalid Bilibili URL."""
         url = "https://www.bilibili.com/read/cv123456" # Article URL, not video
