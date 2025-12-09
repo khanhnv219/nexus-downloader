@@ -7,7 +7,7 @@ A powerful, user-friendly desktop application for downloading videos from YouTub
 
 ## Features
 
-- 🎬 **Multi-Platform Support**: Download from YouTube, TikTok, Facebook, and Bilibili
+- 🎬 **Multi-Platform Support**: Download from YouTube, TikTok, Facebook, Bilibili, and Xiaohongshu
 - 📦 **Batch Downloads**: Process multiple URLs at once
 - 📊 **Real-time Progress**: Visual progress bars and status updates
 - 🎯 **Quality Selection**: Choose your preferred video resolution
@@ -18,6 +18,7 @@ A powerful, user-friendly desktop application for downloading videos from YouTub
 - ⚙️ **Cookie Support**: Use browser cookies for private/restricted videos
 - 🎨 **Modern UI**: Clean, dark-themed interface built with PySide6
 - **Bilibili**: Download single videos, user spaces (channels), and collections (playlists).
+- **Xiaohongshu**: Download videos, short links, and user profiles.
 
 ## Installation
 

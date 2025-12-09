@@ -74,6 +74,24 @@ class YtDlpService:
             elif 'empty' in error_lower and 'playlist' in error_lower:
                 return "The Bilibili collection or user space appears to be empty."
         
+        # Detect Xiaohongshu URLs
+        is_xiaohongshu = 'xiaohongshu.com' in url or 'xhslink.com' in url
+
+        if is_xiaohongshu:
+            if 'no video formats found' in error_lower:
+                return ("This Xiaohongshu content could not be extracted. "
+                        "It may require authentication or is restricted.")
+            elif 'unsupported url' in error_lower:
+                return ("The Xiaohongshu URL is not supported or invalid. "
+                        "Please check the URL.")
+            elif 'http error 404' in error_lower or 'not found' in error_lower:
+                return "This Xiaohongshu content or user could not be found."
+            elif 'http error 403' in error_lower or 'forbidden' in error_lower:
+                return ("Access denied. This Xiaohongshu content may be private or require authentication. "
+                        "Please refer to the documentation for cookie setup.")
+            elif 'empty' in error_lower and 'playlist' in error_lower:
+                return "The Xiaohongshu user profile appears to be empty."
+        
         # Generic error messages
         if 'network' in error_lower or 'connection' in error_lower:
             return f"Failed to fetch video. Check your internet connection. Details: {error_msg}"

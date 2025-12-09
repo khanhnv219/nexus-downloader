@@ -14,6 +14,12 @@ class URLValidator:
     BILIBILI_SPACE_PATTERN = r'https?://space\.bilibili\.com/\d+'
     BILIBILI_COLLECTION_PATTERN = r'https?://(?:www\.)?bilibili\.com/medialist/play/\d+'
     
+    # Xiaohongshu patterns
+    XIAOHONGSHU_EXPLORE_PATTERN = r'https?://(?:www\.)?xiaohongshu\.com/explore/[a-zA-Z0-9]+'
+    XIAOHONGSHU_DISCOVERY_PATTERN = r'https?://(?:www\.)?xiaohongshu\.com/discovery/item/[a-zA-Z0-9]+'
+    XIAOHONGSHU_SHORT_PATTERN = r'https?://xhslink\.com/[a-zA-Z0-9]+'
+    XIAOHONGSHU_USER_PATTERN = r'https?://(?:www\.)?xiaohongshu\.com/user/profile/[a-zA-Z0-9]+'
+
     # Existing platforms (for completeness, though not strictly required by story, good to have)
     YOUTUBE_PATTERN = r'https?://(?:www\.)?(?:youtube\.com|youtu\.be)/.+'
     TIKTOK_PATTERN = r'https?://(?:www\.)?(?:tiktok\.com|vm\.tiktok\.com)/.+'
@@ -38,6 +44,25 @@ class URLValidator:
         return False
 
     @staticmethod
+    def is_xiaohongshu_url(url: str) -> bool:
+        """
+        Checks if the URL is a valid Xiaohongshu video URL.
+
+        Args:
+            url (str): The URL to check.
+
+        Returns:
+            bool: True if the URL matches Xiaohongshu patterns, False otherwise.
+        """
+        if re.match(URLValidator.XIAOHONGSHU_EXPLORE_PATTERN, url) or \
+           re.match(URLValidator.XIAOHONGSHU_DISCOVERY_PATTERN, url) or \
+           re.match(URLValidator.XIAOHONGSHU_DISCOVERY_PATTERN, url) or \
+           re.match(URLValidator.XIAOHONGSHU_SHORT_PATTERN, url) or \
+           re.match(URLValidator.XIAOHONGSHU_USER_PATTERN, url):
+            return True
+        return False
+
+    @staticmethod
     def is_valid_url(url: str) -> bool:
         """
         Checks if the URL is supported by the application.
@@ -48,11 +73,7 @@ class URLValidator:
         Returns:
             bool: True if the URL is supported, False otherwise.
         """
-        # For now, we only explicitly check Bilibili as per the story requirements.
-        # We can expand this to other platforms later or keep it permissive for yt-dlp to handle.
-        # However, the story explicitly asks for Bilibili detection.
-        
-        if URLValidator.is_bilibili_url(url):
+        if URLValidator.is_bilibili_url(url) or URLValidator.is_xiaohongshu_url(url):
             return True
             
         # Fallback for other platforms (YouTube, TikTok, Facebook)

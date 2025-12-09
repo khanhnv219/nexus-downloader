@@ -44,3 +44,33 @@ class TestURLValidator:
         """Test is_valid_url with other URLs (should pass for now)."""
         url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         assert URLValidator.is_valid_url(url) is True
+
+    def test_is_xiaohongshu_url_valid_explore(self):
+        """Test valid Xiaohongshu explore URL."""
+        url = "https://www.xiaohongshu.com/explore/64a123bc000000000b000000"
+        assert URLValidator.is_xiaohongshu_url(url) is True
+
+    def test_is_xiaohongshu_url_valid_discovery(self):
+        """Test valid Xiaohongshu discovery URL."""
+        url = "https://www.xiaohongshu.com/discovery/item/64a123bc000000000b000000"
+        assert URLValidator.is_xiaohongshu_url(url) is True
+
+    def test_is_xiaohongshu_url_valid_short(self):
+        """Test valid Xiaohongshu short URL."""
+        url = "https://xhslink.com/A1b2C3"
+        assert URLValidator.is_xiaohongshu_url(url) is True
+
+    def test_is_xiaohongshu_url_valid_user(self):
+        """Test valid Xiaohongshu user profile URL."""
+        url = "https://www.xiaohongshu.com/user/profile/5b6e7f8g0000000001000000"
+        assert URLValidator.is_xiaohongshu_url(url) is True
+
+    def test_is_xiaohongshu_url_invalid(self):
+        """Test invalid Xiaohongshu URL."""
+        url = "https://www.xiaohongshu.com/invalid/123456" 
+        assert URLValidator.is_xiaohongshu_url(url) is False
+
+    def test_is_valid_url_xiaohongshu(self):
+        """Test is_valid_url with Xiaohongshu URL."""
+        url = "https://www.xiaohongshu.com/explore/64a123bc000000000b000000"
+        assert URLValidator.is_valid_url(url) is True
