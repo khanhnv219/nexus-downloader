@@ -11,6 +11,8 @@ class AppSettings:
     download_folder_path: str = field(default_factory=lambda: os.path.join(os.path.expanduser("~"), "Downloads"))
     concurrent_downloads_limit: int = 2
     facebook_cookies_path: str = ""
+    bilibili_cookies_path: str = ""
+    xiaohongshu_cookies_path: str = ""
     video_resolution: str = "best"
 
 class SettingsService:

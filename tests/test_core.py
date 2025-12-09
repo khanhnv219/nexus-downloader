@@ -134,6 +134,50 @@ def test_download_manager_starts_fetch_job(MockFetchWorker, app):
     manager.fetch_thread.quit()
     manager.fetch_thread.wait()
 
+
+def test_download_manager_get_cookies_path_for_bilibili(app):
+    """Test that the correct cookie path is returned for Bilibili URLs."""
+    manager = DownloadManager()
+    manager.app_settings.bilibili_cookies_path = "/path/to/bilibili.txt"
+    manager.app_settings.xiaohongshu_cookies_path = "/path/to/xhs.txt"
+    manager.app_settings.facebook_cookies_path = "/path/to/fb.txt"
+
+    assert manager._get_cookies_path_for_url("https://www.bilibili.com/video/BV1234567") == "/path/to/bilibili.txt"
+    assert manager._get_cookies_path_for_url("https://b23.tv/abcdef") == "/path/to/bilibili.txt"
+
+
+def test_download_manager_get_cookies_path_for_xiaohongshu(app):
+    """Test that the correct cookie path is returned for Xiaohongshu URLs."""
+    manager = DownloadManager()
+    manager.app_settings.bilibili_cookies_path = "/path/to/bilibili.txt"
+    manager.app_settings.xiaohongshu_cookies_path = "/path/to/xhs.txt"
+    manager.app_settings.facebook_cookies_path = "/path/to/fb.txt"
+
+    assert manager._get_cookies_path_for_url("https://www.xiaohongshu.com/explore/123") == "/path/to/xhs.txt"
+    assert manager._get_cookies_path_for_url("https://xhslink.com/abc") == "/path/to/xhs.txt"
+
+
+def test_download_manager_get_cookies_path_for_facebook(app):
+    """Test that the correct cookie path is returned for Facebook URLs."""
+    manager = DownloadManager()
+    manager.app_settings.bilibili_cookies_path = "/path/to/bilibili.txt"
+    manager.app_settings.xiaohongshu_cookies_path = "/path/to/xhs.txt"
+    manager.app_settings.facebook_cookies_path = "/path/to/fb.txt"
+
+    assert manager._get_cookies_path_for_url("https://www.facebook.com/video/123") == "/path/to/fb.txt"
+    assert manager._get_cookies_path_for_url("https://fb.watch/abc") == "/path/to/fb.txt"
+
+
+def test_download_manager_get_cookies_path_for_other_sites(app):
+    """Test that no cookie path is returned for unsupported sites."""
+    manager = DownloadManager()
+    manager.app_settings.bilibili_cookies_path = "/path/to/bilibili.txt"
+    manager.app_settings.xiaohongshu_cookies_path = "/path/to/xhs.txt"
+    manager.app_settings.facebook_cookies_path = "/path/to/fb.txt"
+
+    assert manager._get_cookies_path_for_url("https://www.youtube.com/watch?v=abc") == ""
+    assert manager._get_cookies_path_for_url("https://www.tiktok.com/@user") == ""
+
 def test_download_worker(qtbot, app, mocker):
     """
     Test the DownloadWorker.

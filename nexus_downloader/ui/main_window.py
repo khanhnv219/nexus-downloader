@@ -209,23 +209,45 @@ class MainWindow(QMainWindow):
                                 "Failed to load application settings. Default settings will be used.")
             return AppSettings() # Return default settings on error
 
+    def _get_cookies_path_for_url(self, url: str) -> str:
+        """Returns the appropriate cookies file path based on the URL.
+
+        Args:
+            url (str): The video URL.
+
+        Returns:
+            str: Path to the cookies file, or empty string if not configured.
+        """
+        url_lower = url.lower()
+        if 'bilibili.com' in url_lower or 'b23.tv' in url_lower:
+            return self.app_settings.bilibili_cookies_path
+        elif 'xiaohongshu.com' in url_lower or 'xhslink.com' in url_lower:
+            return self.app_settings.xiaohongshu_cookies_path
+        elif 'facebook.com' in url_lower or 'fb.watch' in url_lower:
+            return self.app_settings.facebook_cookies_path
+        return ""
+
     def _open_settings_dialog(self):
         """Opens the settings dialog."""
         dialog = SettingsDialog(
             self.app_settings.concurrent_downloads_limit,
             self.app_settings.download_folder_path,
             self.app_settings.facebook_cookies_path,
+            self.app_settings.bilibili_cookies_path,
+            self.app_settings.xiaohongshu_cookies_path,
             self.app_settings.video_resolution,
             self
         )
         dialog.settings_saved.connect(self._on_settings_saved)
         dialog.exec()
 
-    def _on_settings_saved(self, new_limit: int, new_download_path: str, new_cookies_path: str, new_video_resolution: str):
+    def _on_settings_saved(self, new_limit: int, new_download_path: str, new_cookies_path: str, new_bilibili_cookies_path: str, new_xiaohongshu_cookies_path: str, new_video_resolution: str):
         """Handles the settings_saved signal from the SettingsDialog."""
         self.app_settings.concurrent_downloads_limit = new_limit
         self.app_settings.download_folder_path = new_download_path
         self.app_settings.facebook_cookies_path = new_cookies_path
+        self.app_settings.bilibili_cookies_path = new_bilibili_cookies_path
+        self.app_settings.xiaohongshu_cookies_path = new_xiaohongshu_cookies_path
         self.app_settings.video_resolution = new_video_resolution
         try:
             self.settings_service.save_settings(self.app_settings)
@@ -317,7 +339,8 @@ class MainWindow(QMainWindow):
                 return
 
             self._set_fetch_button_loading_state(True)
-            self.download_manager.start_fetch_job(url, self.app_settings.facebook_cookies_path)
+            cookies_path = self._get_cookies_path_for_url(url)
+            self.download_manager.start_fetch_job(url, cookies_path)
 
     def start_download(self):
         """

@@ -2,16 +2,18 @@ from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBo
 from PySide6.QtCore import Signal
 
 class SettingsDialog(QDialog):
-    settings_saved = Signal(int, str, str, str) # Signal to emit when settings are saved
+    settings_saved = Signal(int, str, str, str, str, str) # limit, download_path, fb_cookies, bilibili_cookies, xiaohongshu_cookies, resolution
 
-    def __init__(self, current_concurrent_downloads_limit: int, current_download_folder_path: str, current_facebook_cookies_path: str, current_video_resolution: str, parent=None):
+    def __init__(self, current_concurrent_downloads_limit: int, current_download_folder_path: str, current_facebook_cookies_path: str, current_bilibili_cookies_path: str, current_xiaohongshu_cookies_path: str, current_video_resolution: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.setFixedSize(400, 250)
+        self.setFixedSize(400, 350)
 
         self.current_concurrent_downloads_limit = current_concurrent_downloads_limit
         self.current_download_folder_path = current_download_folder_path
         self.current_facebook_cookies_path = current_facebook_cookies_path
+        self.current_bilibili_cookies_path = current_bilibili_cookies_path
+        self.current_xiaohongshu_cookies_path = current_xiaohongshu_cookies_path
         self.current_video_resolution = current_video_resolution
 
         self._init_ui()
@@ -51,6 +53,28 @@ class SettingsDialog(QDialog):
         cookies_path_layout.addWidget(self.cookies_browse_button)
         main_layout.addLayout(cookies_path_layout)
 
+        # Bilibili Cookies Path
+        bilibili_cookies_layout = QHBoxLayout()
+        self.bilibili_cookies_label = QLabel("Bilibili Cookies:")
+        self.bilibili_cookies_lineedit = QLineEdit(self.current_bilibili_cookies_path)
+        self.bilibili_cookies_lineedit.setReadOnly(True)
+        self.bilibili_cookies_browse_button = QPushButton("Browse...")
+        bilibili_cookies_layout.addWidget(self.bilibili_cookies_label)
+        bilibili_cookies_layout.addWidget(self.bilibili_cookies_lineedit)
+        bilibili_cookies_layout.addWidget(self.bilibili_cookies_browse_button)
+        main_layout.addLayout(bilibili_cookies_layout)
+
+        # Xiaohongshu Cookies Path
+        xiaohongshu_cookies_layout = QHBoxLayout()
+        self.xiaohongshu_cookies_label = QLabel("Xiaohongshu Cookies:")
+        self.xiaohongshu_cookies_lineedit = QLineEdit(self.current_xiaohongshu_cookies_path)
+        self.xiaohongshu_cookies_lineedit.setReadOnly(True)
+        self.xiaohongshu_cookies_browse_button = QPushButton("Browse...")
+        xiaohongshu_cookies_layout.addWidget(self.xiaohongshu_cookies_label)
+        xiaohongshu_cookies_layout.addWidget(self.xiaohongshu_cookies_lineedit)
+        xiaohongshu_cookies_layout.addWidget(self.xiaohongshu_cookies_browse_button)
+        main_layout.addLayout(xiaohongshu_cookies_layout)
+
         # Video Resolution
         video_resolution_layout = QHBoxLayout()
         self.video_resolution_label = QLabel("Video Resolution:")
@@ -78,13 +102,17 @@ class SettingsDialog(QDialog):
         self.cancel_button.clicked.connect(self.reject)
         self.browse_button.clicked.connect(self._on_browse_clicked)
         self.cookies_browse_button.clicked.connect(self._on_cookies_browse_clicked)
+        self.bilibili_cookies_browse_button.clicked.connect(self._on_bilibili_cookies_browse_clicked)
+        self.xiaohongshu_cookies_browse_button.clicked.connect(self._on_xiaohongshu_cookies_browse_clicked)
 
     def _on_save_clicked(self):
         new_limit = self.concurrent_downloads_spinbox.value()
         new_download_path = self.download_path_lineedit.text()
         new_cookies_path = self.cookies_path_lineedit.text()
+        new_bilibili_cookies_path = self.bilibili_cookies_lineedit.text()
+        new_xiaohongshu_cookies_path = self.xiaohongshu_cookies_lineedit.text()
         new_video_resolution = self.video_resolution_combobox.currentText()
-        self.settings_saved.emit(new_limit, new_download_path, new_cookies_path, new_video_resolution)
+        self.settings_saved.emit(new_limit, new_download_path, new_cookies_path, new_bilibili_cookies_path, new_xiaohongshu_cookies_path, new_video_resolution)
         self.accept()
 
     def _on_browse_clicked(self):
@@ -104,6 +132,20 @@ class SettingsDialog(QDialog):
             self.cookies_path_lineedit.setText(file_path)
             self.current_facebook_cookies_path = file_path
 
+    def _on_bilibili_cookies_browse_clicked(self):
+        initial_path = self.bilibili_cookies_lineedit.text() if self.bilibili_cookies_lineedit.text() else ""
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Bilibili Cookies File", initial_path, "Text files (*.txt)")
+        if file_path:
+            self.bilibili_cookies_lineedit.setText(file_path)
+            self.current_bilibili_cookies_path = file_path
+
+    def _on_xiaohongshu_cookies_browse_clicked(self):
+        initial_path = self.xiaohongshu_cookies_lineedit.text() if self.xiaohongshu_cookies_lineedit.text() else ""
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Xiaohongshu Cookies File", initial_path, "Text files (*.txt)")
+        if file_path:
+            self.xiaohongshu_cookies_lineedit.setText(file_path)
+            self.current_xiaohongshu_cookies_path = file_path
+
     def get_concurrent_downloads_limit(self) -> int:
         return self.concurrent_downloads_spinbox.value()
 
@@ -112,6 +154,12 @@ class SettingsDialog(QDialog):
 
     def get_facebook_cookies_path(self) -> str:
         return self.cookies_path_lineedit.text()
+
+    def get_bilibili_cookies_path(self) -> str:
+        return self.bilibili_cookies_lineedit.text()
+
+    def get_xiaohongshu_cookies_path(self) -> str:
+        return self.xiaohongshu_cookies_lineedit.text()
 
     def get_video_resolution(self) -> str:
         return self.video_resolution_combobox.currentText()

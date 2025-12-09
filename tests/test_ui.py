@@ -16,6 +16,7 @@ class MockDownloadManager(QObject):
     download_progress = Signal(str, dict)
     download_finished = Signal(str)
     download_error = Signal(str, str)
+    download_cancelled = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -52,6 +53,14 @@ class MockDownloadManager(QObject):
         Mock method to check if the manager is idle.
         """
         return len(self._active_downloads) == 0
+
+    def stop_all_downloads(self):
+        """Mock method to stop all downloads."""
+        self._active_downloads.clear()
+
+    def update_settings(self, settings):
+        """Mock method to update settings."""
+        pass
     
     def _mark_download_complete(self, url):
         """Helper to mark a download as complete."""
@@ -101,6 +110,7 @@ def test_main_window_fetch_playlist(qtbot, app):
 @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
 def test_main_window_download(qtbot, app):
     """Test the download functionality of the main window."""
+    from PySide6.QtWidgets import QProgressBar
     window = MainWindow()
     
     # Add an item to the table
@@ -112,10 +122,13 @@ def test_main_window_download(qtbot, app):
 
     with qtbot.waitSignal(window.download_manager.download_finished) as blocker:
         window.start_download()
+        window.download_manager._mark_download_complete('some_url')
         window.download_manager.download_finished.emit("some_url")
 
     assert blocker.args == ["some_url"]
-    assert "Completed" in window.download_table.item(0, 3).text()
+    progress_bar = window.download_table.cellWidget(0, 3)
+    assert isinstance(progress_bar, QProgressBar)
+    assert "Completed" in progress_bar.format()
 
 @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
 def test_main_window_resolution_selection(qtbot, app):

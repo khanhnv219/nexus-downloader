@@ -1,93 +1,126 @@
 import pytest
 import os
-import sqlite3
+import json
 from nexus_downloader.services.settings_service import SettingsService, AppSettings
 
-@pytest.fixture
-def temp_settings_db(tmp_path):
-    """Fixture to create a temporary database path for testing."""
-    db_path = tmp_path / "test_app_settings.db"
-    yield str(db_path)
-    if os.path.exists(db_path):
-        os.remove(db_path)
 
 @pytest.fixture
-def settings_service(temp_settings_db):
-    """Fixture to provide a SettingsService instance with a temporary database."""
-    return SettingsService(db_path=temp_settings_db)
+def temp_settings_dir(tmp_path):
+    """Fixture to create a temporary directory for settings."""
+    settings_dir = tmp_path / "test_settings"
+    settings_dir.mkdir()
+    yield str(settings_dir)
 
-def test_initial_db_creation(temp_settings_db):
-    """Test that the database and table are created on initialization."""
-    assert not os.path.exists(temp_settings_db)
-    service = SettingsService(db_path=temp_settings_db)
-    assert os.path.exists(temp_settings_db)
-    conn = sqlite3.connect(temp_settings_db)
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='settings';")
-    assert cursor.fetchone() is not None
-    conn.close()
+
+@pytest.fixture
+def settings_service(temp_settings_dir):
+    """Fixture to provide a SettingsService instance with a temporary directory."""
+    return SettingsService(settings_dir=temp_settings_dir)
+
+
+def test_initial_settings_file_creation(temp_settings_dir):
+    """Test that the settings file is created on first load."""
+    service = SettingsService(settings_dir=temp_settings_dir)
+    settings_path = os.path.join(temp_settings_dir, "settings.json")
+    assert not os.path.exists(settings_path)
+    service.load_settings()
+    assert os.path.exists(settings_path)
+
 
 def test_load_default_settings_if_no_data(settings_service):
-    """Test that default settings are loaded if no data is in the DB."""
+    """Test that default settings are loaded if no data exists."""
     settings = settings_service.load_settings()
-    assert settings == AppSettings()
+    assert settings.concurrent_downloads_limit == 2
+    assert settings.facebook_cookies_path == ""
+    assert settings.bilibili_cookies_path == ""
+    assert settings.xiaohongshu_cookies_path == ""
+    assert settings.video_resolution == "best"
+
 
 def test_save_and_load_settings(settings_service):
     """Test saving and loading of AppSettings."""
-    new_settings = AppSettings(download_folder_path="/new/path", concurrent_downloads_limit=5)
+    new_settings = AppSettings(
+        download_folder_path="/new/path",
+        concurrent_downloads_limit=5,
+        facebook_cookies_path="/path/to/fb_cookies.txt",
+        bilibili_cookies_path="/path/to/bilibili_cookies.txt",
+        xiaohongshu_cookies_path="/path/to/xhs_cookies.txt",
+        video_resolution="1080p"
+    )
     settings_service.save_settings(new_settings)
     loaded_settings = settings_service.load_settings()
-    assert loaded_settings == new_settings
-
-def test_save_and_load_partial_settings(settings_service):
-    """Test saving and loading when only some settings are changed."""
-    # Save only concurrent_downloads_limit
-    partial_settings = AppSettings(concurrent_downloads_limit=7)
-    settings_service.save_settings(partial_settings)
-    loaded_settings = settings_service.load_settings()
-    # download_folder_path should revert to default if not explicitly saved
-    assert loaded_settings.concurrent_downloads_limit == 7
-    assert loaded_settings.download_folder_path == AppSettings().download_folder_path
-
-    # Save only download_folder_path
-    partial_settings_2 = AppSettings(download_folder_path="/another/path")
-    settings_service.save_settings(partial_settings_2)
-    loaded_settings_2 = settings_service.load_settings()
-    assert loaded_settings_2.download_folder_path == "/another/path"
-    assert loaded_settings_2.concurrent_downloads_limit == AppSettings().concurrent_downloads_limit
+    assert loaded_settings.download_folder_path == "/new/path"
+    assert loaded_settings.concurrent_downloads_limit == 5
+    assert loaded_settings.facebook_cookies_path == "/path/to/fb_cookies.txt"
+    assert loaded_settings.bilibili_cookies_path == "/path/to/bilibili_cookies.txt"
+    assert loaded_settings.xiaohongshu_cookies_path == "/path/to/xhs_cookies.txt"
+    assert loaded_settings.video_resolution == "1080p"
 
 
-def test_load_settings_with_invalid_int_value(settings_service, temp_settings_db):
-    """Test loading settings when an int value in DB is invalid."""
-    conn = sqlite3.connect(temp_settings_db)
-    cursor = conn.cursor()
-    cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('concurrent_downloads_limit', 'not_an_integer'))
-    conn.commit()
-    conn.close()
+def test_save_and_load_bilibili_cookies(settings_service):
+    """Test saving and loading Bilibili cookies path."""
+    settings = AppSettings(bilibili_cookies_path="/cookies/bilibili.txt")
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert loaded.bilibili_cookies_path == "/cookies/bilibili.txt"
 
+
+def test_save_and_load_xiaohongshu_cookies(settings_service):
+    """Test saving and loading Xiaohongshu cookies path."""
+    settings = AppSettings(xiaohongshu_cookies_path="/cookies/xiaohongshu.txt")
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert loaded.xiaohongshu_cookies_path == "/cookies/xiaohongshu.txt"
+
+
+def test_load_settings_ignores_unknown_keys(settings_service, temp_settings_dir):
+    """Test that unknown keys in JSON are ignored."""
+    settings_path = os.path.join(temp_settings_dir, "settings.json")
+    with open(settings_path, 'w') as f:
+        json.dump({
+            "concurrent_downloads_limit": 3,
+            "unknown_key": "some_value"
+        }, f)
     settings = settings_service.load_settings()
-    assert settings.concurrent_downloads_limit == AppSettings().concurrent_downloads_limit # Should revert to default
-    assert settings.download_folder_path == AppSettings().download_folder_path # Other settings should be default
+    assert settings.concurrent_downloads_limit == 3
+    assert not hasattr(settings, 'unknown_key')
 
-def test_save_settings_error_handling(settings_service, monkeypatch):
-    """Test that save_settings re-raises SQLite errors."""
-    monkeypatch.setattr('sqlite3.connect', lambda *args, **kwargs: (_ for _ in ()).throw(sqlite3.Error("Disk full")))
-    with pytest.raises(sqlite3.Error):
-        settings_service.save_settings(AppSettings())
 
-def test_load_settings_error_handling(settings_service, monkeypatch):
-    """Test that load_settings returns default on SQLite errors."""
-    monkeypatch.setattr('sqlite3.connect', lambda *args, **kwargs: (_ for _ in ()).throw(sqlite3.Error("DB locked")))
+def test_load_settings_with_invalid_json(settings_service, temp_settings_dir):
+    """Test loading settings when JSON is invalid returns defaults."""
+    settings_path = os.path.join(temp_settings_dir, "settings.json")
+    with open(settings_path, 'w') as f:
+        f.write("{ invalid json }")
     settings = settings_service.load_settings()
     assert settings == AppSettings()
+
 
 def test_default_download_folder_path():
     """Test that the default download folder path is correctly set."""
     settings = AppSettings()
     assert settings.download_folder_path == os.path.join(os.path.expanduser("~"), "Downloads")
 
+
 def test_custom_download_folder_path():
     """Test setting a custom download folder path."""
     custom_path = "/custom/downloads"
     settings = AppSettings(download_folder_path=custom_path)
     assert settings.download_folder_path == custom_path
+
+
+def test_path_portability_with_tilde(settings_service, temp_settings_dir):
+    """Test that paths starting with ~ are saved and loaded correctly."""
+    home = os.path.expanduser("~")
+    test_path = os.path.join(home, "Downloads", "NexusTest")
+    settings = AppSettings(download_folder_path=test_path)
+    settings_service.save_settings(settings)
+
+    # Check the raw JSON content
+    settings_path = os.path.join(temp_settings_dir, "settings.json")
+    with open(settings_path, 'r') as f:
+        data = json.load(f)
+    assert data['download_folder_path'].startswith("~")
+
+    # Verify it loads back correctly
+    loaded = settings_service.load_settings()
+    assert loaded.download_folder_path == test_path

@@ -193,6 +193,24 @@ class DownloadManager(QObject):
         self.app_settings = settings
         self.set_concurrent_downloads(settings.concurrent_downloads_limit)
 
+    def _get_cookies_path_for_url(self, url: str) -> str:
+        """Returns the appropriate cookies file path based on the URL.
+
+        Args:
+            url (str): The video URL.
+
+        Returns:
+            str: Path to the cookies file, or empty string if not configured.
+        """
+        url_lower = url.lower()
+        if 'bilibili.com' in url_lower or 'b23.tv' in url_lower:
+            return self.app_settings.bilibili_cookies_path
+        elif 'xiaohongshu.com' in url_lower or 'xhslink.com' in url_lower:
+            return self.app_settings.xiaohongshu_cookies_path
+        elif 'facebook.com' in url_lower or 'fb.watch' in url_lower:
+            return self.app_settings.facebook_cookies_path
+        return ""
+
     def is_idle(self) -> bool:
         """Checks if the download manager is currently idle.
         
@@ -254,11 +272,12 @@ class DownloadManager(QObject):
         """
         while self.download_queue and self.thread_pool.activeThreadCount() < self.thread_pool.maxThreadCount():
             video_url = self.download_queue.popleft()
+            cookies_path = self._get_cookies_path_for_url(video_url)
             worker = DownloadWorker(
                 video_url, 
                 self.app_settings.download_folder_path, 
-                self.video_resolution, # Pass the stored resolution
-                self.app_settings.facebook_cookies_path,
+                self.video_resolution,
+                cookies_path,
                 self.yt_dlp_service,
                 self._cancellation_event  # Pass cancellation event
             )
