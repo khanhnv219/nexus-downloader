@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from nexus_downloader.core.download_manager import DownloadManager
+from nexus_downloader.core.yt_dlp_service import QUALITY_OPTIONS_LIST, get_format_string
 from nexus_downloader.ui.settings_dialog import SettingsDialog
 from nexus_downloader.services.settings_service import SettingsService, AppSettings # Import SettingsService and AppSettings
 from nexus_downloader.core.data_models import DownloadStatus, DownloadItem
@@ -91,9 +92,12 @@ class MainWindow(QMainWindow):
 
         # Resolution selection
         resolution_layout = QHBoxLayout()
-        self.resolution_label = QLabel("Resolution:")
+        self.resolution_label = QLabel("Quality:")
         self.resolution_combobox = QComboBox()
-        self.resolution_combobox.addItems(["Best", "1080p", "720p"])
+        self.resolution_combobox.addItems(QUALITY_OPTIONS_LIST)
+        # Set default quality from settings
+        if self.app_settings.video_resolution in QUALITY_OPTIONS_LIST:
+            self.resolution_combobox.setCurrentText(self.app_settings.video_resolution)
         resolution_layout.addWidget(self.resolution_label)
         resolution_layout.addWidget(self.resolution_combobox)
         main_layout.addLayout(resolution_layout)
@@ -368,10 +372,7 @@ class MainWindow(QMainWindow):
             self.stop_download_button.setEnabled(True)
             
             selected_resolution = self.resolution_combobox.currentText()
-            if selected_resolution == "Best":
-                resolution_format = "best"
-            else:
-                resolution_format = f"height<={selected_resolution.replace('p', '')}"
+            resolution_format = get_format_string(selected_resolution)
             self.download_manager.start_download_job(video_urls_to_queue, resolution_format)
     
     def stop_download(self) -> None:

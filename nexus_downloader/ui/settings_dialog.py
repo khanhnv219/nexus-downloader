@@ -1,6 +1,8 @@
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QPushButton, QLineEdit, QFileDialog, QComboBox
 from PySide6.QtCore import Signal
 
+from nexus_downloader.core.yt_dlp_service import QUALITY_OPTIONS_LIST
+
 class SettingsDialog(QDialog):
     settings_saved = Signal(int, str, str, str, str, str) # limit, download_path, fb_cookies, bilibili_cookies, xiaohongshu_cookies, resolution
 
@@ -77,9 +79,9 @@ class SettingsDialog(QDialog):
 
         # Video Resolution
         video_resolution_layout = QHBoxLayout()
-        self.video_resolution_label = QLabel("Video Resolution:")
+        self.video_resolution_label = QLabel("Default Quality:")
         self.video_resolution_combobox = QComboBox()
-        self.video_resolution_combobox.addItems(["best", "1080p", "720p", "480p", "360p"])
+        self.video_resolution_combobox.addItems(QUALITY_OPTIONS_LIST)
         self.video_resolution_combobox.setCurrentText(self.current_video_resolution)
         video_resolution_layout.addWidget(self.video_resolution_label)
         video_resolution_layout.addWidget(self.video_resolution_combobox)

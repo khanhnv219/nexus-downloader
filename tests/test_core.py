@@ -4,9 +4,60 @@ Unit tests for the core module.
 import pytest
 from unittest.mock import patch, MagicMock
 from PySide6.QtCore import QCoreApplication, QObject, Signal
-from nexus_downloader.core.yt_dlp_service import YtDlpService
+from nexus_downloader.core.yt_dlp_service import (
+    YtDlpService,
+    QUALITY_OPTIONS,
+    QUALITY_OPTIONS_LIST,
+    get_format_string,
+)
 from nexus_downloader.core.download_manager import DownloadManager, FetchWorker, DownloadWorker
 import os
+
+
+# Tests for quality format string mapping
+def test_get_format_string_best():
+    """Test 'Best' quality returns correct format string."""
+    assert get_format_string("Best") == "bestvideo+bestaudio/best"
+
+
+def test_get_format_string_4k():
+    """Test '4K' quality returns correct format string."""
+    assert get_format_string("4K") == "bestvideo[height<=2160]+bestaudio/best[height<=2160]"
+
+
+def test_get_format_string_1080p():
+    """Test '1080p' quality returns correct format string."""
+    assert get_format_string("1080p") == "bestvideo[height<=1080]+bestaudio/best[height<=1080]"
+
+
+def test_get_format_string_720p():
+    """Test '720p' quality returns correct format string."""
+    assert get_format_string("720p") == "bestvideo[height<=720]+bestaudio/best[height<=720]"
+
+
+def test_get_format_string_audio_only():
+    """Test 'Audio Only' returns audio-only format string."""
+    assert get_format_string("Audio Only") == "bestaudio/best"
+
+
+def test_get_format_string_fallback():
+    """Test unknown quality falls back to 'best'."""
+    assert get_format_string("Unknown") == "best"
+    assert get_format_string("") == "best"
+    assert get_format_string("invalid") == "best"
+
+
+def test_quality_options_list_order():
+    """Test QUALITY_OPTIONS_LIST has correct order (Best first, Audio Only last)."""
+    assert QUALITY_OPTIONS_LIST[0] == "Best"
+    assert QUALITY_OPTIONS_LIST[-1] == "Audio Only"
+    assert len(QUALITY_OPTIONS_LIST) == 8
+
+
+def test_quality_options_list_all_in_dict():
+    """Test all items in QUALITY_OPTIONS_LIST have corresponding entries in QUALITY_OPTIONS."""
+    for quality in QUALITY_OPTIONS_LIST:
+        assert quality in QUALITY_OPTIONS
 
 @pytest.fixture
 def app(qapp):

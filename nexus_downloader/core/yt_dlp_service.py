@@ -3,6 +3,33 @@ This module provides a service to interact with the yt-dlp library.
 """
 import yt_dlp
 
+# Quality display name -> yt-dlp format string
+QUALITY_OPTIONS = {
+    "Best": "bestvideo+bestaudio/best",
+    "4K": "bestvideo[height<=2160]+bestaudio/best[height<=2160]",
+    "1440p": "bestvideo[height<=1440]+bestaudio/best[height<=1440]",
+    "1080p": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
+    "720p": "bestvideo[height<=720]+bestaudio/best[height<=720]",
+    "480p": "bestvideo[height<=480]+bestaudio/best[height<=480]",
+    "360p": "bestvideo[height<=360]+bestaudio/best[height<=360]",
+    "Audio Only": "bestaudio/best",
+}
+
+# Ordered list for UI display (highest to lowest quality)
+QUALITY_OPTIONS_LIST = ["Best", "4K", "1440p", "1080p", "720p", "480p", "360p", "Audio Only"]
+
+
+def get_format_string(quality: str) -> str:
+    """Returns the yt-dlp format string for a given quality option.
+
+    Args:
+        quality (str): The quality display name (e.g., "1080p", "Best", "Audio Only").
+
+    Returns:
+        str: The yt-dlp format string, or "best" as fallback for unknown values.
+    """
+    return QUALITY_OPTIONS.get(quality, "best")
+
 class YtDlpService:
     """
     A service class that wraps the yt-dlp library to fetch video information.
