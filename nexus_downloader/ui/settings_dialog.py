@@ -1,15 +1,22 @@
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QPushButton, QLineEdit, QFileDialog, QComboBox
 from PySide6.QtCore import Signal
 
-from nexus_downloader.core.yt_dlp_service import QUALITY_OPTIONS_LIST
+from nexus_downloader.core.yt_dlp_service import (
+    QUALITY_OPTIONS_LIST,
+    VIDEO_FORMAT_OPTIONS_LIST,
+    AUDIO_FORMAT_OPTIONS_LIST,
+)
 
 class SettingsDialog(QDialog):
-    settings_saved = Signal(int, str, str, str, str, str) # limit, download_path, fb_cookies, bilibili_cookies, xiaohongshu_cookies, resolution
+    settings_saved = Signal(int, str, str, str, str, str, str, str)  # limit, download_path, fb_cookies, bilibili_cookies, xiaohongshu_cookies, resolution, video_format, audio_format
 
-    def __init__(self, current_concurrent_downloads_limit: int, current_download_folder_path: str, current_facebook_cookies_path: str, current_bilibili_cookies_path: str, current_xiaohongshu_cookies_path: str, current_video_resolution: str, parent=None):
+    def __init__(self, current_concurrent_downloads_limit: int, current_download_folder_path: str,
+                 current_facebook_cookies_path: str, current_bilibili_cookies_path: str,
+                 current_xiaohongshu_cookies_path: str, current_video_resolution: str,
+                 current_video_format: str, current_audio_format: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.setFixedSize(400, 350)
+        self.setFixedSize(400, 420)
 
         self.current_concurrent_downloads_limit = current_concurrent_downloads_limit
         self.current_download_folder_path = current_download_folder_path
@@ -17,6 +24,8 @@ class SettingsDialog(QDialog):
         self.current_bilibili_cookies_path = current_bilibili_cookies_path
         self.current_xiaohongshu_cookies_path = current_xiaohongshu_cookies_path
         self.current_video_resolution = current_video_resolution
+        self.current_video_format = current_video_format
+        self.current_audio_format = current_audio_format
 
         self._init_ui()
 
@@ -87,6 +96,26 @@ class SettingsDialog(QDialog):
         video_resolution_layout.addWidget(self.video_resolution_combobox)
         main_layout.addLayout(video_resolution_layout)
 
+        # Video Format
+        video_format_layout = QHBoxLayout()
+        self.video_format_label = QLabel("Default Video Format:")
+        self.video_format_combobox = QComboBox()
+        self.video_format_combobox.addItems(VIDEO_FORMAT_OPTIONS_LIST)
+        self.video_format_combobox.setCurrentText(self.current_video_format)
+        video_format_layout.addWidget(self.video_format_label)
+        video_format_layout.addWidget(self.video_format_combobox)
+        main_layout.addLayout(video_format_layout)
+
+        # Audio Format
+        audio_format_layout = QHBoxLayout()
+        self.audio_format_label = QLabel("Default Audio Format:")
+        self.audio_format_combobox = QComboBox()
+        self.audio_format_combobox.addItems(AUDIO_FORMAT_OPTIONS_LIST)
+        self.audio_format_combobox.setCurrentText(self.current_audio_format)
+        audio_format_layout.addWidget(self.audio_format_label)
+        audio_format_layout.addWidget(self.audio_format_combobox)
+        main_layout.addLayout(audio_format_layout)
+
         # Spacer
         main_layout.addStretch()
 
@@ -114,7 +143,12 @@ class SettingsDialog(QDialog):
         new_bilibili_cookies_path = self.bilibili_cookies_lineedit.text()
         new_xiaohongshu_cookies_path = self.xiaohongshu_cookies_lineedit.text()
         new_video_resolution = self.video_resolution_combobox.currentText()
-        self.settings_saved.emit(new_limit, new_download_path, new_cookies_path, new_bilibili_cookies_path, new_xiaohongshu_cookies_path, new_video_resolution)
+        new_video_format = self.video_format_combobox.currentText()
+        new_audio_format = self.audio_format_combobox.currentText()
+        self.settings_saved.emit(
+            new_limit, new_download_path, new_cookies_path, new_bilibili_cookies_path,
+            new_xiaohongshu_cookies_path, new_video_resolution, new_video_format, new_audio_format
+        )
         self.accept()
 
     def _on_browse_clicked(self):
@@ -165,3 +199,9 @@ class SettingsDialog(QDialog):
 
     def get_video_resolution(self) -> str:
         return self.video_resolution_combobox.currentText()
+
+    def get_video_format(self) -> str:
+        return self.video_format_combobox.currentText()
+
+    def get_audio_format(self) -> str:
+        return self.audio_format_combobox.currentText()

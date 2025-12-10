@@ -15,22 +15,23 @@ def main_window(qtbot):
 def test_clear_completed_downloads(main_window, qtbot):
     """Verify that 'Clear Completed' removes only completed items."""
     # Add 3 rows: Completed, Downloading, Completed
+    # Note: Status column is now index 4 (columns: checkbox, title, quality, format, status)
     main_window.download_table.setRowCount(3)
     
     # Row 0: Completed
     pb0 = QProgressBar()
     pb0.setFormat("Completed")
-    main_window.download_table.setCellWidget(0, 3, pb0)
+    main_window.download_table.setCellWidget(0, 4, pb0)
     
     # Row 1: Downloading
     pb1 = QProgressBar()
     pb1.setFormat("Downloading 50%")
-    main_window.download_table.setCellWidget(1, 3, pb1)
+    main_window.download_table.setCellWidget(1, 4, pb1)
     
     # Row 2: Completed
     pb2 = QProgressBar()
     pb2.setFormat("Completed")
-    main_window.download_table.setCellWidget(2, 3, pb2)
+    main_window.download_table.setCellWidget(2, 4, pb2)
     
     # Click Clear Completed
     main_window._clear_completed_downloads()
@@ -39,7 +40,7 @@ def test_clear_completed_downloads(main_window, qtbot):
     assert main_window.download_table.rowCount() == 1
     
     # Verify the remaining row is the "Downloading" one
-    remaining_pb = main_window.download_table.cellWidget(0, 3)
+    remaining_pb = main_window.download_table.cellWidget(0, 4)
     assert remaining_pb.format() == "Downloading 50%"
 
 def test_clear_all_downloads_idle(main_window, qtbot):

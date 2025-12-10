@@ -9,6 +9,12 @@ from nexus_downloader.core.yt_dlp_service import (
     QUALITY_OPTIONS,
     QUALITY_OPTIONS_LIST,
     get_format_string,
+    VIDEO_FORMAT_OPTIONS,
+    VIDEO_FORMAT_OPTIONS_LIST,
+    AUDIO_FORMAT_OPTIONS,
+    AUDIO_FORMAT_OPTIONS_LIST,
+    get_video_format_ext,
+    get_audio_format_ext,
 )
 from nexus_downloader.core.download_manager import DownloadManager, FetchWorker, DownloadWorker
 import os
@@ -58,6 +64,75 @@ def test_quality_options_list_all_in_dict():
     """Test all items in QUALITY_OPTIONS_LIST have corresponding entries in QUALITY_OPTIONS."""
     for quality in QUALITY_OPTIONS_LIST:
         assert quality in QUALITY_OPTIONS
+
+
+# Tests for video format helper functions
+def test_get_video_format_ext_mp4():
+    """Test 'MP4' format returns correct extension."""
+    assert get_video_format_ext("MP4") == "mp4"
+
+
+def test_get_video_format_ext_webm():
+    """Test 'WebM' format returns correct extension."""
+    assert get_video_format_ext("WebM") == "webm"
+
+
+def test_get_video_format_ext_mkv():
+    """Test 'MKV' format returns correct extension."""
+    assert get_video_format_ext("MKV") == "mkv"
+
+
+def test_get_video_format_ext_fallback():
+    """Test unknown format falls back to 'mp4'."""
+    assert get_video_format_ext("Unknown") == "mp4"
+    assert get_video_format_ext("") == "mp4"
+    assert get_video_format_ext("invalid") == "mp4"
+
+
+def test_video_format_options_list_order():
+    """Test VIDEO_FORMAT_OPTIONS_LIST has expected items."""
+    assert VIDEO_FORMAT_OPTIONS_LIST == ["MP4", "WebM", "MKV"]
+
+
+def test_video_format_options_list_all_in_dict():
+    """Test all items in VIDEO_FORMAT_OPTIONS_LIST have corresponding entries in VIDEO_FORMAT_OPTIONS."""
+    for format_name in VIDEO_FORMAT_OPTIONS_LIST:
+        assert format_name in VIDEO_FORMAT_OPTIONS
+
+
+# Tests for audio format helper functions
+def test_get_audio_format_ext_mp3():
+    """Test 'MP3' format returns correct extension."""
+    assert get_audio_format_ext("MP3") == "mp3"
+
+
+def test_get_audio_format_ext_m4a():
+    """Test 'M4A' format returns correct extension."""
+    assert get_audio_format_ext("M4A") == "m4a"
+
+
+def test_get_audio_format_ext_ogg():
+    """Test 'OGG' format returns correct extension."""
+    assert get_audio_format_ext("OGG") == "ogg"
+
+
+def test_get_audio_format_ext_fallback():
+    """Test unknown format falls back to 'm4a'."""
+    assert get_audio_format_ext("Unknown") == "m4a"
+    assert get_audio_format_ext("") == "m4a"
+    assert get_audio_format_ext("invalid") == "m4a"
+
+
+def test_audio_format_options_list_order():
+    """Test AUDIO_FORMAT_OPTIONS_LIST has expected items."""
+    assert AUDIO_FORMAT_OPTIONS_LIST == ["M4A", "MP3", "OGG"]
+
+
+def test_audio_format_options_list_all_in_dict():
+    """Test all items in AUDIO_FORMAT_OPTIONS_LIST have corresponding entries in AUDIO_FORMAT_OPTIONS."""
+    for format_name in AUDIO_FORMAT_OPTIONS_LIST:
+        assert format_name in AUDIO_FORMAT_OPTIONS
+
 
 @pytest.fixture
 def app(qapp):
@@ -239,13 +314,19 @@ def test_download_worker(qtbot, app, mocker):
     test_url = 'some_url'
     test_path = '/tmp/downloads'
     test_resolution = 'best'
+    test_video_format = 'mp4'
+    test_audio_format = 'm4a'
     test_cookies = 'cookies.txt'
-    worker = DownloadWorker(test_url, test_path, test_resolution, test_cookies, mock_yt_dlp_service_instance)
+    worker = DownloadWorker(
+        test_url, test_path, test_resolution, test_video_format, test_audio_format,
+        test_cookies, mock_yt_dlp_service_instance
+    )
     with qtbot.waitSignal(worker.signals.finished) as blocker:
         worker.run()
     assert blocker.args == [test_url]
     mock_yt_dlp_service_instance.download_video.assert_called_once_with(
-        test_url, test_path, test_resolution, progress_hook=worker.progress_hook, cookies_file=test_cookies
+        test_url, test_path, test_resolution, test_video_format, test_audio_format,
+        progress_hook=worker.progress_hook, cookies_file=test_cookies
     )
 
 @pytest.mark.integration

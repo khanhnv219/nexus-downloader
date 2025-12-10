@@ -18,6 +18,24 @@ QUALITY_OPTIONS = {
 # Ordered list for UI display (highest to lowest quality)
 QUALITY_OPTIONS_LIST = ["Best", "4K", "1440p", "1080p", "720p", "480p", "360p", "Audio Only"]
 
+# Video container formats
+VIDEO_FORMAT_OPTIONS = {
+    "MP4": "mp4",
+    "WebM": "webm",
+    "MKV": "mkv",
+}
+
+VIDEO_FORMAT_OPTIONS_LIST = ["MP4", "WebM", "MKV"]
+
+# Audio formats (used when "Audio Only" quality is selected)
+AUDIO_FORMAT_OPTIONS = {
+    "M4A": "m4a",
+    "MP3": "mp3",
+    "OGG": "ogg",
+}
+
+AUDIO_FORMAT_OPTIONS_LIST = ["M4A", "MP3", "OGG"]
+
 
 def get_format_string(quality: str) -> str:
     """Returns the yt-dlp format string for a given quality option.
@@ -29,6 +47,31 @@ def get_format_string(quality: str) -> str:
         str: The yt-dlp format string, or "best" as fallback for unknown values.
     """
     return QUALITY_OPTIONS.get(quality, "best")
+
+
+def get_video_format_ext(format_name: str) -> str:
+    """Returns the file extension for a given video format option.
+
+    Args:
+        format_name (str): The format display name (e.g., "MP4", "WebM").
+
+    Returns:
+        str: The file extension, or "mp4" as fallback for unknown values.
+    """
+    return VIDEO_FORMAT_OPTIONS.get(format_name, "mp4")
+
+
+def get_audio_format_ext(format_name: str) -> str:
+    """Returns the file extension for a given audio format option.
+
+    Args:
+        format_name (str): The format display name (e.g., "MP3", "M4A").
+
+    Returns:
+        str: The file extension, or "m4a" as fallback for unknown values.
+    """
+    return AUDIO_FORMAT_OPTIONS.get(format_name, "m4a")
+
 
 class YtDlpService:
     """
@@ -129,14 +172,17 @@ class YtDlpService:
         return error_msg
 
 
-    def download_video(self, video_url, download_folder_path, video_resolution="best", progress_hook=None, cookies_file=None):
+    def download_video(self, video_url, download_folder_path, video_resolution="best",
+                        video_format="mp4", audio_format="m4a", progress_hook=None, cookies_file=None):
         """
         Downloads a video to the specified folder using yt-dlp.
 
         Args:
             video_url (str): The URL of the video to download.
             download_folder_path (str): The path to the folder where the video should be saved.
-            video_resolution (str): The desired video resolution.
+            video_resolution (str): The desired video resolution/quality format string.
+            video_format (str): The desired video container format (mp4, webm, mkv).
+            audio_format (str): The desired audio format for audio-only downloads (mp3, m4a, ogg).
             progress_hook (callable, optional): A function to call for progress updates. Defaults to None.
             cookies_file (str, optional): Path to a Netscape-style cookies file. Defaults to None.
 
@@ -158,9 +204,25 @@ class YtDlpService:
         ydl_opts = {
             'format': format_string,
             'outtmpl': f'{download_folder_path}/%(title)s.%(ext)s',
-            'noplaylist': True, # Ensure only single video is downloaded
+            'noplaylist': True,  # Ensure only single video is downloaded
             'progress_hooks': [progress_hook] if progress_hook else [],
         }
+        
+        # Detect audio-only mode and apply appropriate post-processor
+        is_audio_only = video_resolution == "bestaudio/best"
+        
+        if is_audio_only:
+            # Audio extraction with format conversion
+            codec_map = {'mp3': 'mp3', 'm4a': 'aac', 'ogg': 'vorbis'}
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': codec_map.get(audio_format, 'aac'),
+                'preferredquality': '192',
+            }]
+        else:
+            # Video download with container format
+            ydl_opts['merge_output_format'] = video_format
+        
         if cookies_file:
             ydl_opts['cookiefile'] = cookies_file
 
@@ -169,6 +231,10 @@ class YtDlpService:
                 ydl.download([video_url])
             return True, None
         except yt_dlp.utils.DownloadError as e:
-            return False, self._format_error_message(video_url, str(e))
+            error_msg = str(e)
+            # Check for FFmpeg-related errors
+            if 'ffmpeg' in error_msg.lower() or 'ffprobe' in error_msg.lower():
+                return False, "FFmpeg is required for audio format conversion. Please install FFmpeg and try again."
+            return False, self._format_error_message(video_url, error_msg)
         except Exception as e:
             return False, f"An unexpected error occurred: {str(e)}"

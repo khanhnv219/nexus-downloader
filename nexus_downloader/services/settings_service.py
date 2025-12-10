@@ -14,6 +14,8 @@ class AppSettings:
     bilibili_cookies_path: str = ""
     xiaohongshu_cookies_path: str = ""
     video_resolution: str = "best"
+    video_format: str = "MP4"
+    audio_format: str = "M4A"
 
 class SettingsService:
     """

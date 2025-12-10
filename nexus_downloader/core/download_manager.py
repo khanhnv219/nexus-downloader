@@ -43,11 +43,14 @@ class DownloadWorker(QRunnable):
         error = Signal(str, str)     # Emit video_url and error message
         cancelled = Signal(str)      # Emit video_url when cancelled
 
-    def __init__(self, video_url, download_folder_path, video_resolution, cookies_file, yt_dlp_service, cancellation_event=None):
+    def __init__(self, video_url, download_folder_path, video_resolution, video_format, audio_format,
+                 cookies_file, yt_dlp_service, cancellation_event=None):
         super().__init__()
         self.video_url = video_url
         self.download_folder_path = download_folder_path
         self.video_resolution = video_resolution
+        self.video_format = video_format
+        self.audio_format = audio_format
         self.cookies_file = cookies_file
         self.yt_dlp_service = yt_dlp_service
         self.cancellation_event = cancellation_event
@@ -82,6 +85,8 @@ class DownloadWorker(QRunnable):
                 self.video_url, 
                 self.download_folder_path,
                 self.video_resolution,
+                self.video_format,
+                self.audio_format,
                 progress_hook=self.progress_hook,
                 cookies_file=self.cookies_file
             )
@@ -171,7 +176,9 @@ class DownloadManager(QObject):
         self.download_queue = deque()
         self.thread_pool = QThreadPool()
         self.set_concurrent_downloads(self.app_settings.concurrent_downloads_limit) # Use limit from settings
-        self.video_resolution = "best" # Default value
+        self.video_resolution = "best"  # Default value
+        self.video_format = "mp4"  # Default video format
+        self.audio_format = "m4a"  # Default audio format
         
         # Thread-safe cancellation event for download workers
         self._cancellation_event = threading.Event()
@@ -250,18 +257,22 @@ class DownloadManager(QObject):
         self.fetch_worker.error.connect(self.fetch_error)
         self.fetch_thread.start()
 
-    def start_download_job(self, video_urls, video_resolution="best"):
+    def start_download_job(self, video_urls, video_resolution="best", video_format="mp4", audio_format="m4a"):
         """
         Adds video URLs to the download queue and starts downloads if threads are available.
 
         Args:
             video_urls (list): A list of video URLs to download.
-            video_resolution (str): The desired video resolution.
+            video_resolution (str): The desired video resolution format string.
+            video_format (str): The desired video container format (mp4, webm, mkv).
+            audio_format (str): The desired audio format for audio-only downloads (mp3, m4a, ogg).
         """
         # Clear cancellation event for new download session
         self._cancellation_event.clear()
         
-        self.video_resolution = video_resolution # Update the resolution here
+        self.video_resolution = video_resolution
+        self.video_format = video_format
+        self.audio_format = audio_format
         for url in video_urls:
             self.download_queue.append(url)
         self._start_next_download()
@@ -277,6 +288,8 @@ class DownloadManager(QObject):
                 video_url, 
                 self.app_settings.download_folder_path, 
                 self.video_resolution,
+                self.video_format,
+                self.audio_format,
                 cookies_path,
                 self.yt_dlp_service,
                 self._cancellation_event  # Pass cancellation event

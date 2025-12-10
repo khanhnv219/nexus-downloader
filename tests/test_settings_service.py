@@ -124,3 +124,45 @@ def test_path_portability_with_tilde(settings_service, temp_settings_dir):
     # Verify it loads back correctly
     loaded = settings_service.load_settings()
     assert loaded.download_folder_path == test_path
+
+
+def test_default_video_format():
+    """Test that the default video format is MP4."""
+    settings = AppSettings()
+    assert settings.video_format == "MP4"
+
+
+def test_default_audio_format():
+    """Test that the default audio format is M4A."""
+    settings = AppSettings()
+    assert settings.audio_format == "M4A"
+
+
+def test_settings_video_format_persistence(settings_service):
+    """Test video format setting saves and loads correctly."""
+    settings = AppSettings(video_format="WebM")
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert loaded.video_format == "WebM"
+
+
+def test_settings_audio_format_persistence(settings_service):
+    """Test audio format setting saves and loads correctly."""
+    settings = AppSettings(audio_format="MP3")
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert loaded.audio_format == "MP3"
+
+
+def test_save_and_load_all_format_settings(settings_service):
+    """Test saving and loading all format-related settings together."""
+    settings = AppSettings(
+        video_resolution="1080p",
+        video_format="MKV",
+        audio_format="OGG"
+    )
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert loaded.video_resolution == "1080p"
+    assert loaded.video_format == "MKV"
+    assert loaded.audio_format == "OGG"

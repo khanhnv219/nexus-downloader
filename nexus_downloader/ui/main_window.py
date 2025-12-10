@@ -24,7 +24,14 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from nexus_downloader.core.download_manager import DownloadManager
-from nexus_downloader.core.yt_dlp_service import QUALITY_OPTIONS_LIST, get_format_string
+from nexus_downloader.core.yt_dlp_service import (
+    QUALITY_OPTIONS_LIST,
+    get_format_string,
+    VIDEO_FORMAT_OPTIONS_LIST,
+    AUDIO_FORMAT_OPTIONS_LIST,
+    get_video_format_ext,
+    get_audio_format_ext,
+)
 from nexus_downloader.ui.settings_dialog import SettingsDialog
 from nexus_downloader.services.settings_service import SettingsService, AppSettings # Import SettingsService and AppSettings
 from nexus_downloader.core.data_models import DownloadStatus, DownloadItem
@@ -90,7 +97,7 @@ class MainWindow(QMainWindow):
         select_all_layout.addStretch()
         main_layout.addLayout(select_all_layout)
 
-        # Resolution selection
+        # Resolution and Format selection
         resolution_layout = QHBoxLayout()
         self.resolution_label = QLabel("Quality:")
         self.resolution_combobox = QComboBox()
@@ -100,12 +107,26 @@ class MainWindow(QMainWindow):
             self.resolution_combobox.setCurrentText(self.app_settings.video_resolution)
         resolution_layout.addWidget(self.resolution_label)
         resolution_layout.addWidget(self.resolution_combobox)
+        
+        # Format selection
+        self.format_label = QLabel("Format:")
+        self.format_combobox = QComboBox()
+        self.format_combobox.addItems(VIDEO_FORMAT_OPTIONS_LIST)
+        # Set default format from settings
+        if self.app_settings.video_format in VIDEO_FORMAT_OPTIONS_LIST:
+            self.format_combobox.setCurrentText(self.app_settings.video_format)
+        resolution_layout.addWidget(self.format_label)
+        resolution_layout.addWidget(self.format_combobox)
+        
         main_layout.addLayout(resolution_layout)
+        
+        # Connect quality change to update format options
+        self.resolution_combobox.currentTextChanged.connect(self._on_quality_changed)
 
         # Download list
         self.download_table = QTableWidget()
-        self.download_table.setColumnCount(4)
-        self.download_table.setHorizontalHeaderLabels(["", "Title", "Resolution", "Status"])
+        self.download_table.setColumnCount(5)
+        self.download_table.setHorizontalHeaderLabels(["", "Title", "Quality", "Format", "Status"])
         self.download_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.download_table.setSelectionMode(QTableWidget.NoSelection)
         main_layout.addWidget(self.download_table)
@@ -201,6 +222,26 @@ class MainWindow(QMainWindow):
         self.select_all_checkbox.setChecked(all_checked)
         self.select_all_checkbox.blockSignals(False)
 
+    def _on_quality_changed(self, quality: str):
+        """Updates format dropdown based on quality selection.
+        
+        When 'Audio Only' is selected, shows audio format options.
+        Otherwise, shows video format options.
+        
+        Args:
+            quality (str): The selected quality option.
+        """
+        if quality == "Audio Only":
+            self.format_combobox.clear()
+            self.format_combobox.addItems(AUDIO_FORMAT_OPTIONS_LIST)
+            if self.app_settings.audio_format in AUDIO_FORMAT_OPTIONS_LIST:
+                self.format_combobox.setCurrentText(self.app_settings.audio_format)
+        else:
+            self.format_combobox.clear()
+            self.format_combobox.addItems(VIDEO_FORMAT_OPTIONS_LIST)
+            if self.app_settings.video_format in VIDEO_FORMAT_OPTIONS_LIST:
+                self.format_combobox.setCurrentText(self.app_settings.video_format)
+
     def _load_initial_settings(self) -> AppSettings:
         """Loads settings on application startup, handling potential errors."""
         try:
@@ -240,12 +281,16 @@ class MainWindow(QMainWindow):
             self.app_settings.bilibili_cookies_path,
             self.app_settings.xiaohongshu_cookies_path,
             self.app_settings.video_resolution,
+            self.app_settings.video_format,
+            self.app_settings.audio_format,
             self
         )
         dialog.settings_saved.connect(self._on_settings_saved)
         dialog.exec()
 
-    def _on_settings_saved(self, new_limit: int, new_download_path: str, new_cookies_path: str, new_bilibili_cookies_path: str, new_xiaohongshu_cookies_path: str, new_video_resolution: str):
+    def _on_settings_saved(self, new_limit: int, new_download_path: str, new_cookies_path: str,
+                           new_bilibili_cookies_path: str, new_xiaohongshu_cookies_path: str,
+                           new_video_resolution: str, new_video_format: str, new_audio_format: str):
         """Handles the settings_saved signal from the SettingsDialog."""
         self.app_settings.concurrent_downloads_limit = new_limit
         self.app_settings.download_folder_path = new_download_path
@@ -253,6 +298,8 @@ class MainWindow(QMainWindow):
         self.app_settings.bilibili_cookies_path = new_bilibili_cookies_path
         self.app_settings.xiaohongshu_cookies_path = new_xiaohongshu_cookies_path
         self.app_settings.video_resolution = new_video_resolution
+        self.app_settings.video_format = new_video_format
+        self.app_settings.audio_format = new_audio_format
         try:
             self.settings_service.save_settings(self.app_settings)
             self.download_manager.update_settings(self.app_settings)
@@ -274,7 +321,7 @@ class MainWindow(QMainWindow):
 
     def _update_item_status(self, row, status, text_override=None, progress_value=None):
         """Updates the status and text of a table row."""
-        progress_bar = self.download_table.cellWidget(row, 3)
+        progress_bar = self.download_table.cellWidget(row, 4)  # Status is now column 4
         if isinstance(progress_bar, QProgressBar):
             if status == DownloadStatus.DOWNLOADING and progress_value is not None:
                 progress_bar.setValue(int(progress_value))
@@ -373,7 +420,19 @@ class MainWindow(QMainWindow):
             
             selected_resolution = self.resolution_combobox.currentText()
             resolution_format = get_format_string(selected_resolution)
-            self.download_manager.start_download_job(video_urls_to_queue, resolution_format)
+            selected_format = self.format_combobox.currentText()
+            
+            # Determine format based on quality selection
+            if selected_resolution == "Audio Only":
+                video_format = "mp4"  # Not used for audio-only
+                audio_format = get_audio_format_ext(selected_format)
+            else:
+                video_format = get_video_format_ext(selected_format)
+                audio_format = "m4a"  # Not used for video downloads
+            
+            self.download_manager.start_download_job(
+                video_urls_to_queue, resolution_format, video_format, audio_format
+            )
     
     def stop_download(self) -> None:
         """Stops all active and queued downloads.
@@ -416,16 +475,22 @@ class MainWindow(QMainWindow):
                 title_item.setData(Qt.UserRole, video_url)
                 self.download_table.setItem(row_position, 1, title_item)
 
+                # Quality column
                 resolution = self.resolution_combobox.currentText()
                 resolution_item = QTableWidgetItem(resolution)
                 self.download_table.setItem(row_position, 2, resolution_item)
 
-                # Use QProgressBar for status
+                # Format column
+                format_text = self.format_combobox.currentText()
+                format_item = QTableWidgetItem(format_text)
+                self.download_table.setItem(row_position, 3, format_item)
+
+                # Use QProgressBar for status (now column 4)
                 progress_bar = QProgressBar()
                 progress_bar.setRange(0, 100)
                 progress_bar.setValue(0)
                 progress_bar.setFormat(DownloadStatus.PENDING.name.replace('_', ' ').title())
-                self.download_table.setCellWidget(row_position, 3, progress_bar)
+                self.download_table.setCellWidget(row_position, 4, progress_bar)
 
 
     def on_fetch_error(self, error_message):
@@ -543,12 +608,8 @@ class MainWindow(QMainWindow):
         """Removes all completed downloads from the list."""
         rows_to_remove = []
         for row in range(self.download_table.rowCount()):
-            # Check status widget (now QProgressBar) or check internal state if we had one.
-            # We can check the progress bar format or value.
-            # Or better, check the status item if we kept it? 
-            # Wait, I replaced the status item with QProgressBar.
-            # I can check the progress bar's format string or value.
-            progress_bar = self.download_table.cellWidget(row, 3)
+            # Check status widget (QProgressBar in column 4)
+            progress_bar = self.download_table.cellWidget(row, 4)
             if isinstance(progress_bar, QProgressBar):
                 if progress_bar.format() == "Completed":
                     rows_to_remove.append(row)
