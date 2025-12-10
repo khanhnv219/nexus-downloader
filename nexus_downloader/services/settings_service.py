@@ -16,6 +16,9 @@ class AppSettings:
     video_resolution: str = "best"
     video_format: str = "MP4"
     audio_format: str = "M4A"
+    subtitles_enabled: bool = False
+    subtitle_language: str = "English"
+    embed_subtitles: bool = False
 
 class SettingsService:
     """

@@ -36,6 +36,27 @@ AUDIO_FORMAT_OPTIONS = {
 
 AUDIO_FORMAT_OPTIONS_LIST = ["M4A", "MP3", "OGG"]
 
+# Subtitle language options
+# Key: Display name, Value: yt-dlp language code
+SUBTITLE_LANGUAGE_OPTIONS = {
+    "Auto (All Available)": "all",
+    "English": "en",
+    "Chinese (Simplified)": "zh-Hans",
+    "Chinese (Traditional)": "zh-Hant",
+    "Spanish": "es",
+    "French": "fr",
+    "German": "de",
+    "Japanese": "ja",
+    "Korean": "ko",
+    "Portuguese": "pt",
+    "Russian": "ru",
+}
+
+SUBTITLE_LANGUAGE_OPTIONS_LIST = [
+    "Auto (All Available)", "English", "Chinese (Simplified)", "Chinese (Traditional)",
+    "Spanish", "French", "German", "Japanese", "Korean", "Portuguese", "Russian"
+]
+
 
 def get_format_string(quality: str) -> str:
     """Returns the yt-dlp format string for a given quality option.
@@ -71,6 +92,18 @@ def get_audio_format_ext(format_name: str) -> str:
         str: The file extension, or "m4a" as fallback for unknown values.
     """
     return AUDIO_FORMAT_OPTIONS.get(format_name, "m4a")
+
+
+def get_subtitle_lang_code(language_name: str) -> str:
+    """Returns the yt-dlp language code for a given subtitle language option.
+
+    Args:
+        language_name (str): The language display name (e.g., "English", "Chinese (Simplified)").
+
+    Returns:
+        str: The yt-dlp language code, or "en" as fallback for unknown values.
+    """
+    return SUBTITLE_LANGUAGE_OPTIONS.get(language_name, "en")
 
 
 class YtDlpService:
@@ -173,7 +206,8 @@ class YtDlpService:
 
 
     def download_video(self, video_url, download_folder_path, video_resolution="best",
-                        video_format="mp4", audio_format="m4a", progress_hook=None, cookies_file=None):
+                        video_format="mp4", audio_format="m4a", progress_hook=None, cookies_file=None,
+                        subtitles_enabled=False, subtitle_language="en", embed_subtitles=False):
         """
         Downloads a video to the specified folder using yt-dlp.
 
@@ -185,9 +219,13 @@ class YtDlpService:
             audio_format (str): The desired audio format for audio-only downloads (mp3, m4a, ogg).
             progress_hook (callable, optional): A function to call for progress updates. Defaults to None.
             cookies_file (str, optional): Path to a Netscape-style cookies file. Defaults to None.
+            subtitles_enabled (bool): Whether to download subtitles. Defaults to False.
+            subtitle_language (str): The yt-dlp language code for subtitles. Defaults to "en".
+            embed_subtitles (bool): Whether to embed subtitles in the video. Defaults to False.
 
         Returns:
-            tuple: (True, None) on success, (False, error_message) on failure.
+            tuple: (True, subtitle_status, None) on success, (False, None, error_message) on failure.
+            subtitle_status can be: "with_subs", "no_subs", "subs_embedded", or None.
         """
         # Handle Bilibili format restrictions
         # Bilibili's "best" quality may require premium membership
@@ -210,31 +248,81 @@ class YtDlpService:
         
         # Detect audio-only mode and apply appropriate post-processor
         is_audio_only = video_resolution == "bestaudio/best"
+        postprocessors = []
         
         if is_audio_only:
             # Audio extraction with format conversion
             codec_map = {'mp3': 'mp3', 'm4a': 'aac', 'ogg': 'vorbis'}
-            ydl_opts['postprocessors'] = [{
+            postprocessors.append({
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': codec_map.get(audio_format, 'aac'),
                 'preferredquality': '192',
-            }]
+            })
         else:
             # Video download with container format
             ydl_opts['merge_output_format'] = video_format
+        
+        # Handle subtitle options
+        subtitle_status = None
+        if subtitles_enabled and not is_audio_only:
+            ydl_opts['writesubtitles'] = True
+            ydl_opts['writeautomaticsub'] = True  # Also try auto-generated subtitles
+            if subtitle_language == "all":
+                ydl_opts['allsubtitles'] = True
+            else:
+                ydl_opts['subtitleslangs'] = [subtitle_language]
+            
+            if embed_subtitles:
+                postprocessors.append({
+                    'key': 'FFmpegEmbedSubtitle',
+                })
+        
+        if postprocessors:
+            ydl_opts['postprocessors'] = postprocessors
         
         if cookies_file:
             ydl_opts['cookiefile'] = cookies_file
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([video_url])
-            return True, None
+                result = ydl.extract_info(video_url, download=True)
+                
+                # Determine subtitle status
+                if subtitles_enabled and not is_audio_only:
+                    subtitle_status = self._check_subtitle_result(result, embed_subtitles)
+            
+            return True, subtitle_status, None
         except yt_dlp.utils.DownloadError as e:
             error_msg = str(e)
             # Check for FFmpeg-related errors
             if 'ffmpeg' in error_msg.lower() or 'ffprobe' in error_msg.lower():
-                return False, "FFmpeg is required for audio format conversion. Please install FFmpeg and try again."
-            return False, self._format_error_message(video_url, error_msg)
+                return False, None, "FFmpeg is required for audio/subtitle processing. Please install FFmpeg and try again."
+            return False, None, self._format_error_message(video_url, error_msg)
         except Exception as e:
-            return False, f"An unexpected error occurred: {str(e)}"
+            return False, None, f"An unexpected error occurred: {str(e)}"
+
+    def _check_subtitle_result(self, result, embed_subtitles):
+        """Checks the download result to determine subtitle status.
+        
+        Args:
+            result: The yt-dlp extraction result dictionary.
+            embed_subtitles (bool): Whether subtitles were supposed to be embedded.
+            
+        Returns:
+            str: "with_subs", "no_subs", or "subs_embedded"
+        """
+        if result is None:
+            return "no_subs"
+        
+        has_subtitles = bool(result.get('subtitles') or result.get('automatic_captions'))
+        requested_subtitles = result.get('requested_subtitles')
+        
+        if requested_subtitles:
+            if embed_subtitles:
+                return "subs_embedded"
+            return "with_subs"
+        elif has_subtitles:
+            # Subtitles were available but maybe not in requested language
+            return "with_subs"
+        else:
+            return "no_subs"

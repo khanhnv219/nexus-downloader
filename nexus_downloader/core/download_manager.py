@@ -39,12 +39,13 @@ class DownloadWorker(QRunnable):
     # QRunnable does not support signals directly, so we'll use a QObject for signals
     class Signals(QObject):
         progress = Signal(str, dict) # Emit video_url and progress data
-        finished = Signal(str)       # Emit video_url
+        finished = Signal(str, str)  # Emit video_url and subtitle_status
         error = Signal(str, str)     # Emit video_url and error message
         cancelled = Signal(str)      # Emit video_url when cancelled
 
     def __init__(self, video_url, download_folder_path, video_resolution, video_format, audio_format,
-                 cookies_file, yt_dlp_service, cancellation_event=None):
+                 cookies_file, yt_dlp_service, cancellation_event=None,
+                 subtitles_enabled=False, subtitle_language="en", embed_subtitles=False):
         super().__init__()
         self.video_url = video_url
         self.download_folder_path = download_folder_path
@@ -54,6 +55,9 @@ class DownloadWorker(QRunnable):
         self.cookies_file = cookies_file
         self.yt_dlp_service = yt_dlp_service
         self.cancellation_event = cancellation_event
+        self.subtitles_enabled = subtitles_enabled
+        self.subtitle_language = subtitle_language
+        self.embed_subtitles = embed_subtitles
         self.signals = self.Signals()
 
     def progress_hook(self, d):
@@ -81,14 +85,17 @@ class DownloadWorker(QRunnable):
             return
         
         try:
-            success, message = self.yt_dlp_service.download_video(
+            success, subtitle_status, message = self.yt_dlp_service.download_video(
                 self.video_url, 
                 self.download_folder_path,
                 self.video_resolution,
                 self.video_format,
                 self.audio_format,
                 progress_hook=self.progress_hook,
-                cookies_file=self.cookies_file
+                cookies_file=self.cookies_file,
+                subtitles_enabled=self.subtitles_enabled,
+                subtitle_language=self.subtitle_language,
+                embed_subtitles=self.embed_subtitles
             )
             
             # Check for cancellation after download attempt
@@ -98,7 +105,7 @@ class DownloadWorker(QRunnable):
                 return
             
             if success:
-                self.signals.finished.emit(self.video_url)
+                self.signals.finished.emit(self.video_url, subtitle_status or "")
             else:
                 self.signals.error.emit(self.video_url, message)
                 
@@ -160,7 +167,7 @@ class DownloadManager(QObject):
     fetch_finished = Signal(list)
     fetch_error = Signal(str)
     download_progress = Signal(str, dict) # Emit video_url and progress data
-    download_finished = Signal(str)       # Emit video_url
+    download_finished = Signal(str, str)  # Emit video_url and subtitle_status
     download_error = Signal(str, str)     # Emit video_url and error message
     download_cancelled = Signal(str)      # Emit video_url when cancelled
 
@@ -179,6 +186,9 @@ class DownloadManager(QObject):
         self.video_resolution = "best"  # Default value
         self.video_format = "mp4"  # Default video format
         self.audio_format = "m4a"  # Default audio format
+        self.subtitles_enabled = False  # Default subtitle setting
+        self.subtitle_language = "en"  # Default subtitle language code
+        self.embed_subtitles = False  # Default embed setting
         
         # Thread-safe cancellation event for download workers
         self._cancellation_event = threading.Event()
@@ -257,7 +267,8 @@ class DownloadManager(QObject):
         self.fetch_worker.error.connect(self.fetch_error)
         self.fetch_thread.start()
 
-    def start_download_job(self, video_urls, video_resolution="best", video_format="mp4", audio_format="m4a"):
+    def start_download_job(self, video_urls, video_resolution="best", video_format="mp4", audio_format="m4a",
+                           subtitles_enabled=False, subtitle_language="en", embed_subtitles=False):
         """
         Adds video URLs to the download queue and starts downloads if threads are available.
 
@@ -266,6 +277,9 @@ class DownloadManager(QObject):
             video_resolution (str): The desired video resolution format string.
             video_format (str): The desired video container format (mp4, webm, mkv).
             audio_format (str): The desired audio format for audio-only downloads (mp3, m4a, ogg).
+            subtitles_enabled (bool): Whether to download subtitles. Defaults to False.
+            subtitle_language (str): The yt-dlp language code for subtitles. Defaults to "en".
+            embed_subtitles (bool): Whether to embed subtitles in the video. Defaults to False.
         """
         # Clear cancellation event for new download session
         self._cancellation_event.clear()
@@ -273,6 +287,9 @@ class DownloadManager(QObject):
         self.video_resolution = video_resolution
         self.video_format = video_format
         self.audio_format = audio_format
+        self.subtitles_enabled = subtitles_enabled
+        self.subtitle_language = subtitle_language
+        self.embed_subtitles = embed_subtitles
         for url in video_urls:
             self.download_queue.append(url)
         self._start_next_download()
@@ -292,14 +309,17 @@ class DownloadManager(QObject):
                 self.audio_format,
                 cookies_path,
                 self.yt_dlp_service,
-                self._cancellation_event  # Pass cancellation event
+                self._cancellation_event,  # Pass cancellation event
+                self.subtitles_enabled,
+                self.subtitle_language,
+                self.embed_subtitles
             )
             worker.signals.progress.connect(self.download_progress)
             worker.signals.finished.connect(self.download_finished)
             worker.signals.error.connect(self.download_error)
             worker.signals.cancelled.connect(self.download_cancelled)  # Connect cancelled signal
             # Ensure the next download is triggered regardless of success or failure
-            worker.signals.finished.connect(self._start_next_download)
+            worker.signals.finished.connect(lambda url, status: self._start_next_download())
             worker.signals.error.connect(self._start_next_download)
             worker.signals.cancelled.connect(self._start_next_download)  # Also trigger on cancellation
             self.thread_pool.start(worker)

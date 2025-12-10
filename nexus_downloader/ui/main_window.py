@@ -31,6 +31,8 @@ from nexus_downloader.core.yt_dlp_service import (
     AUDIO_FORMAT_OPTIONS_LIST,
     get_video_format_ext,
     get_audio_format_ext,
+    SUBTITLE_LANGUAGE_OPTIONS_LIST,
+    get_subtitle_lang_code,
 )
 from nexus_downloader.ui.settings_dialog import SettingsDialog
 from nexus_downloader.services.settings_service import SettingsService, AppSettings # Import SettingsService and AppSettings
@@ -119,6 +121,32 @@ class MainWindow(QMainWindow):
         resolution_layout.addWidget(self.format_combobox)
         
         main_layout.addLayout(resolution_layout)
+        
+        # Subtitle controls
+        subtitle_layout = QHBoxLayout()
+        self.subtitle_checkbox = QCheckBox("Download Subtitles")
+        self.subtitle_checkbox.setChecked(self.app_settings.subtitles_enabled)
+        subtitle_layout.addWidget(self.subtitle_checkbox)
+        
+        self.subtitle_language_label = QLabel("Language:")
+        self.subtitle_language_combobox = QComboBox()
+        self.subtitle_language_combobox.addItems(SUBTITLE_LANGUAGE_OPTIONS_LIST)
+        if self.app_settings.subtitle_language in SUBTITLE_LANGUAGE_OPTIONS_LIST:
+            self.subtitle_language_combobox.setCurrentText(self.app_settings.subtitle_language)
+        self.subtitle_language_combobox.setEnabled(self.app_settings.subtitles_enabled)
+        subtitle_layout.addWidget(self.subtitle_language_label)
+        subtitle_layout.addWidget(self.subtitle_language_combobox)
+        
+        self.embed_subtitles_checkbox = QCheckBox("Embed Subtitles")
+        self.embed_subtitles_checkbox.setChecked(self.app_settings.embed_subtitles)
+        self.embed_subtitles_checkbox.setEnabled(self.app_settings.subtitles_enabled)
+        subtitle_layout.addWidget(self.embed_subtitles_checkbox)
+        
+        subtitle_layout.addStretch()
+        main_layout.addLayout(subtitle_layout)
+        
+        # Connect subtitle checkbox state change
+        self.subtitle_checkbox.stateChanged.connect(self._on_subtitle_checkbox_changed)
         
         # Connect quality change to update format options
         self.resolution_combobox.currentTextChanged.connect(self._on_quality_changed)
@@ -242,6 +270,12 @@ class MainWindow(QMainWindow):
             if self.app_settings.video_format in VIDEO_FORMAT_OPTIONS_LIST:
                 self.format_combobox.setCurrentText(self.app_settings.video_format)
 
+    def _on_subtitle_checkbox_changed(self, state):
+        """Handles state change of the subtitle checkbox."""
+        is_enabled = state == 2  # Qt.Checked
+        self.subtitle_language_combobox.setEnabled(is_enabled)
+        self.embed_subtitles_checkbox.setEnabled(is_enabled)
+
     def _load_initial_settings(self) -> AppSettings:
         """Loads settings on application startup, handling potential errors."""
         try:
@@ -283,6 +317,9 @@ class MainWindow(QMainWindow):
             self.app_settings.video_resolution,
             self.app_settings.video_format,
             self.app_settings.audio_format,
+            self.app_settings.subtitles_enabled,
+            self.app_settings.subtitle_language,
+            self.app_settings.embed_subtitles,
             self
         )
         dialog.settings_saved.connect(self._on_settings_saved)
@@ -290,7 +327,8 @@ class MainWindow(QMainWindow):
 
     def _on_settings_saved(self, new_limit: int, new_download_path: str, new_cookies_path: str,
                            new_bilibili_cookies_path: str, new_xiaohongshu_cookies_path: str,
-                           new_video_resolution: str, new_video_format: str, new_audio_format: str):
+                           new_video_resolution: str, new_video_format: str, new_audio_format: str,
+                           new_subtitles_enabled: bool, new_subtitle_language: str, new_embed_subtitles: bool):
         """Handles the settings_saved signal from the SettingsDialog."""
         self.app_settings.concurrent_downloads_limit = new_limit
         self.app_settings.download_folder_path = new_download_path
@@ -300,6 +338,16 @@ class MainWindow(QMainWindow):
         self.app_settings.video_resolution = new_video_resolution
         self.app_settings.video_format = new_video_format
         self.app_settings.audio_format = new_audio_format
+        self.app_settings.subtitles_enabled = new_subtitles_enabled
+        self.app_settings.subtitle_language = new_subtitle_language
+        self.app_settings.embed_subtitles = new_embed_subtitles
+        
+        # Update subtitle controls in main window
+        self.subtitle_checkbox.setChecked(new_subtitles_enabled)
+        if new_subtitle_language in SUBTITLE_LANGUAGE_OPTIONS_LIST:
+            self.subtitle_language_combobox.setCurrentText(new_subtitle_language)
+        self.embed_subtitles_checkbox.setChecked(new_embed_subtitles)
+        
         try:
             self.settings_service.save_settings(self.app_settings)
             self.download_manager.update_settings(self.app_settings)
@@ -430,8 +478,14 @@ class MainWindow(QMainWindow):
                 video_format = get_video_format_ext(selected_format)
                 audio_format = "m4a"  # Not used for video downloads
             
+            # Get subtitle settings
+            subtitles_enabled = self.subtitle_checkbox.isChecked()
+            subtitle_language = get_subtitle_lang_code(self.subtitle_language_combobox.currentText())
+            embed_subtitles = self.embed_subtitles_checkbox.isChecked()
+            
             self.download_manager.start_download_job(
-                video_urls_to_queue, resolution_format, video_format, audio_format
+                video_urls_to_queue, resolution_format, video_format, audio_format,
+                subtitles_enabled, subtitle_language, embed_subtitles
             )
     
     def stop_download(self) -> None:
@@ -547,13 +601,28 @@ class MainWindow(QMainWindow):
         self.activateWindow()
         self.raise_()
 
-    def on_download_finished(self, video_url):
+    def on_download_finished(self, video_url, subtitle_status=""):
         """
         Handles the finished signal from the DownloadWorker for a specific video.
+        
+        Args:
+            video_url (str): The URL of the completed video.
+            subtitle_status (str): Status of subtitles: "with_subs", "no_subs", "subs_embedded", or "".
         """
         row = self._find_row_by_url(video_url)
         if row != -1:
-            self._update_item_status(row, DownloadStatus.COMPLETED)
+            # Update status based on subtitle result
+            progress_bar = self.download_table.cellWidget(row, 4)
+            if isinstance(progress_bar, QProgressBar):
+                progress_bar.setValue(100)
+                if subtitle_status == "subs_embedded":
+                    progress_bar.setFormat("Completed (Subs Embedded)")
+                elif subtitle_status == "with_subs":
+                    progress_bar.setFormat("Completed (With Subs)")
+                elif subtitle_status == "no_subs":
+                    progress_bar.setFormat("Completed (No Subs)")
+                else:
+                    progress_bar.setFormat("Completed")
         
         # Update progress
         self._download_completed_count += 1

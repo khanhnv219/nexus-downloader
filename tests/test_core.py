@@ -15,6 +15,9 @@ from nexus_downloader.core.yt_dlp_service import (
     AUDIO_FORMAT_OPTIONS_LIST,
     get_video_format_ext,
     get_audio_format_ext,
+    SUBTITLE_LANGUAGE_OPTIONS,
+    SUBTITLE_LANGUAGE_OPTIONS_LIST,
+    get_subtitle_lang_code,
 )
 from nexus_downloader.core.download_manager import DownloadManager, FetchWorker, DownloadWorker
 import os
@@ -134,6 +137,52 @@ def test_audio_format_options_list_all_in_dict():
         assert format_name in AUDIO_FORMAT_OPTIONS
 
 
+# Tests for subtitle language helper functions
+def test_get_subtitle_lang_code_english():
+    """Test 'English' returns correct language code."""
+    assert get_subtitle_lang_code("English") == "en"
+
+
+def test_get_subtitle_lang_code_chinese_simplified():
+    """Test 'Chinese (Simplified)' returns correct language code."""
+    assert get_subtitle_lang_code("Chinese (Simplified)") == "zh-Hans"
+
+
+def test_get_subtitle_lang_code_chinese_traditional():
+    """Test 'Chinese (Traditional)' returns correct language code."""
+    assert get_subtitle_lang_code("Chinese (Traditional)") == "zh-Hant"
+
+
+def test_get_subtitle_lang_code_auto():
+    """Test 'Auto (All Available)' returns 'all'."""
+    assert get_subtitle_lang_code("Auto (All Available)") == "all"
+
+
+def test_get_subtitle_lang_code_japanese():
+    """Test 'Japanese' returns correct language code."""
+    assert get_subtitle_lang_code("Japanese") == "ja"
+
+
+def test_get_subtitle_lang_code_fallback():
+    """Test unknown language falls back to 'en'."""
+    assert get_subtitle_lang_code("Unknown") == "en"
+    assert get_subtitle_lang_code("") == "en"
+    assert get_subtitle_lang_code("invalid") == "en"
+
+
+def test_subtitle_language_options_list_order():
+    """Test SUBTITLE_LANGUAGE_OPTIONS_LIST has expected first item."""
+    assert SUBTITLE_LANGUAGE_OPTIONS_LIST[0] == "Auto (All Available)"
+    assert "English" in SUBTITLE_LANGUAGE_OPTIONS_LIST
+    assert len(SUBTITLE_LANGUAGE_OPTIONS_LIST) == 11
+
+
+def test_subtitle_language_options_list_all_in_dict():
+    """Test all items in list have corresponding entries in dict."""
+    for lang in SUBTITLE_LANGUAGE_OPTIONS_LIST:
+        assert lang in SUBTITLE_LANGUAGE_OPTIONS
+
+
 @pytest.fixture
 def app(qapp):
     """Create a QApplication instance."""
@@ -193,12 +242,13 @@ def test_yt_dlp_service_download_video_success(mock_youtube_dl):
     Test that download_video calls yt-dlp with the correct options and download path.
     """
     mock_ydl_instance = MagicMock()
+    mock_ydl_instance.extract_info.return_value = {'title': 'Test Video'}
     mock_youtube_dl.return_value.__enter__.return_value = mock_ydl_instance
 
     service = YtDlpService()
     test_url = "http://example.com/video"
     test_path = "/tmp/downloads"
-    success, error = service.download_video(test_url, test_path)
+    success, subtitle_status, error = service.download_video(test_url, test_path)
 
     assert success is True
     assert error is None
@@ -213,7 +263,7 @@ def test_yt_dlp_service_download_video_success(mock_youtube_dl):
         ydl_opts.update(call_args.kwargs)
 
     assert ydl_opts['outtmpl'] == f'{test_path}/%(title)s.%(ext)s'
-    mock_ydl_instance.download.assert_called_once_with([test_url])
+    mock_ydl_instance.extract_info.assert_called_once_with(test_url, download=True)
 
 def test_fetch_worker_single_video(qtbot, app):
     """
@@ -309,7 +359,7 @@ def test_download_worker(qtbot, app, mocker):
     Test the DownloadWorker.
     """
     mock_yt_dlp_service_instance = mocker.patch('nexus_downloader.core.download_manager.YtDlpService').return_value
-    mock_yt_dlp_service_instance.download_video.return_value = (True, None)
+    mock_yt_dlp_service_instance.download_video.return_value = (True, None, None)
 
     test_url = 'some_url'
     test_path = '/tmp/downloads'
@@ -323,10 +373,11 @@ def test_download_worker(qtbot, app, mocker):
     )
     with qtbot.waitSignal(worker.signals.finished) as blocker:
         worker.run()
-    assert blocker.args == [test_url]
+    assert blocker.args == [test_url, ""]
     mock_yt_dlp_service_instance.download_video.assert_called_once_with(
         test_url, test_path, test_resolution, test_video_format, test_audio_format,
-        progress_hook=worker.progress_hook, cookies_file=test_cookies
+        progress_hook=worker.progress_hook, cookies_file=test_cookies,
+        subtitles_enabled=False, subtitle_language='en', embed_subtitles=False
     )
 
 @pytest.mark.integration
@@ -395,7 +446,7 @@ def test_download_manager_queues_downloads(mock_yt_dlp_service, qtbot, app):
     Test that DownloadManager correctly queues multiple downloads and starts them based on concurrency.
     """
     mock_yt_dlp_service_instance = mock_yt_dlp_service.return_value
-    mock_yt_dlp_service_instance.download_video.return_value = (True, None)
+    mock_yt_dlp_service_instance.download_video.return_value = (True, None, None)
 
     manager = DownloadManager()
     manager.thread_pool.setMaxThreadCount(1) # Set max concurrent downloads to 1 for easier testing
@@ -411,7 +462,7 @@ def test_download_manager_concurrency_limit(mock_yt_dlp_service, qtbot, app):
     Test that DownloadManager respects the concurrent download limit.
     """
     mock_yt_dlp_service_instance = mock_yt_dlp_service.return_value
-    mock_yt_dlp_service_instance.download_video.return_value = (True, None)
+    mock_yt_dlp_service_instance.download_video.return_value = (True, None, None)
 
     manager = DownloadManager()
     manager.thread_pool.setMaxThreadCount(2) # Set max concurrent downloads to 2

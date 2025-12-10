@@ -166,3 +166,60 @@ def test_save_and_load_all_format_settings(settings_service):
     assert loaded.video_resolution == "1080p"
     assert loaded.video_format == "MKV"
     assert loaded.audio_format == "OGG"
+
+
+# Tests for subtitle settings
+def test_default_subtitles_disabled():
+    """Test that subtitles are disabled by default."""
+    settings = AppSettings()
+    assert settings.subtitles_enabled == False
+
+
+def test_default_subtitle_language():
+    """Test that default subtitle language is English."""
+    settings = AppSettings()
+    assert settings.subtitle_language == "English"
+
+
+def test_default_embed_subtitles_disabled():
+    """Test that embed subtitles is disabled by default."""
+    settings = AppSettings()
+    assert settings.embed_subtitles == False
+
+
+def test_settings_subtitle_enabled_persistence(settings_service):
+    """Test subtitle enabled setting saves and loads correctly."""
+    settings = AppSettings(subtitles_enabled=True)
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert loaded.subtitles_enabled == True
+
+
+def test_settings_subtitle_language_persistence(settings_service):
+    """Test subtitle language setting saves and loads correctly."""
+    settings = AppSettings(subtitle_language="Chinese (Simplified)")
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert loaded.subtitle_language == "Chinese (Simplified)"
+
+
+def test_settings_embed_subtitles_persistence(settings_service):
+    """Test embed subtitles setting saves and loads correctly."""
+    settings = AppSettings(embed_subtitles=True)
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert loaded.embed_subtitles == True
+
+
+def test_save_and_load_all_subtitle_settings(settings_service):
+    """Test saving and loading all subtitle-related settings together."""
+    settings = AppSettings(
+        subtitles_enabled=True,
+        subtitle_language="Japanese",
+        embed_subtitles=True
+    )
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert loaded.subtitles_enabled == True
+    assert loaded.subtitle_language == "Japanese"
+    assert loaded.embed_subtitles == True
