@@ -30,6 +30,15 @@ from .colors import (
     SCROLLBAR_HANDLE_HOVER,
     FONT_FAMILY,
     FONT_SIZE_DEFAULT,
+    FONT_SIZE_HEADER,
+    FONT_WEIGHT_MEDIUM,
+    FONT_WEIGHT_SEMI_BOLD,
+    SPACING_XS,
+    SPACING_SM,
+    SPACING_MD,
+    BORDER_RADIUS_SM,
+    BORDER_RADIUS_MD,
+    BORDER_RADIUS_LG,
 )
 
 
@@ -60,9 +69,9 @@ QLabel {{
 
 /* Line edits */
 QLineEdit {{
-    padding: 6px 8px;
+    padding: 6px {SPACING_SM};
     border: 1px solid {BORDER};
-    border-radius: 4px;
+    border-radius: {BORDER_RADIUS_SM};
     background-color: {BG_TERTIARY};
     color: {TEXT_PRIMARY};
     selection-background-color: {ACCENT_PRIMARY};
@@ -83,12 +92,12 @@ QLineEdit::placeholder {{
 
 /* Push buttons */
 QPushButton {{
-    padding: 8px 16px;
+    padding: {SPACING_SM} {SPACING_MD};
     border: 1px solid {ACCENT_PRIMARY};
-    border-radius: 6px;
+    border-radius: {BORDER_RADIUS_MD};
     background-color: {ACCENT_PRIMARY};
     color: {TEXT_PRIMARY};
-    font-weight: 500;
+    font-weight: {FONT_WEIGHT_MEDIUM};
 }}
 
 QPushButton:hover {{
@@ -121,9 +130,9 @@ QPushButton[secondary="true"]:hover {{
 
 /* Combo boxes */
 QComboBox {{
-    padding: 6px 8px;
+    padding: 6px {SPACING_SM};
     border: 1px solid {BORDER};
-    border-radius: 4px;
+    border-radius: {BORDER_RADIUS_SM};
     background-color: {BG_TERTIARY};
     color: {TEXT_PRIMARY};
     min-width: 100px;
@@ -144,10 +153,10 @@ QComboBox::drop-down {{
 
 QComboBox::down-arrow {{
     image: none;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
+    border-left: {SPACING_XS} solid transparent;
+    border-right: {SPACING_XS} solid transparent;
     border-top: 6px solid {TEXT_SECONDARY};
-    margin-right: 8px;
+    margin-right: {SPACING_SM};
 }}
 
 QComboBox QAbstractItemView {{
@@ -160,7 +169,7 @@ QComboBox QAbstractItemView {{
 /* Check boxes */
 QCheckBox {{
     color: {TEXT_PRIMARY};
-    spacing: 8px;
+    spacing: {SPACING_SM};
 }}
 
 QCheckBox::indicator {{
@@ -188,7 +197,7 @@ QCheckBox::indicator:disabled {{
 /* Progress bars */
 QProgressBar {{
     border: 1px solid {BORDER};
-    border-radius: 4px;
+    border-radius: {BORDER_RADIUS_SM};
     text-align: center;
     color: {TEXT_PRIMARY};
     background-color: {PROGRESS_BG};
@@ -203,7 +212,7 @@ QProgressBar::chunk {{
 /* Tables */
 QTableWidget, QTableView {{
     border: 1px solid {BORDER};
-    border-radius: 4px;
+    border-radius: {BORDER_RADIUS_SM};
     background-color: {BG_SECONDARY};
     color: {TEXT_PRIMARY};
     gridline-color: {TABLE_GRIDLINE};
@@ -212,7 +221,7 @@ QTableWidget, QTableView {{
 }}
 
 QTableWidget::item, QTableView::item {{
-    padding: 4px 8px;
+    padding: {SPACING_XS} {SPACING_SM};
 }}
 
 QTableWidget::item:selected, QTableView::item:selected {{
@@ -227,11 +236,12 @@ QTableWidget::item:hover, QTableView::item:hover {{
 QHeaderView::section {{
     background-color: {BG_SECONDARY};
     color: {TEXT_PRIMARY};
-    padding: 6px 8px;
+    padding: 6px {SPACING_SM};
     border: none;
     border-bottom: 1px solid {BORDER};
     border-right: 1px solid {TABLE_GRIDLINE};
-    font-weight: 500;
+    font-size: {FONT_SIZE_HEADER};
+    font-weight: {FONT_WEIGHT_MEDIUM};
 }}
 
 QHeaderView::section:hover {{
@@ -241,7 +251,7 @@ QHeaderView::section:hover {{
 /* Tab widget */
 QTabWidget::pane {{
     border: 1px solid {BORDER};
-    border-radius: 4px;
+    border-radius: {BORDER_RADIUS_SM};
     background-color: {BG_SECONDARY};
     top: -1px;
 }}
@@ -249,9 +259,9 @@ QTabWidget::pane {{
 QTabBar::tab {{
     background-color: {BG_PRIMARY};
     color: {TEXT_SECONDARY};
-    padding: 8px 16px;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
+    padding: {SPACING_SM} {SPACING_MD};
+    border-top-left-radius: {BORDER_RADIUS_SM};
+    border-top-right-radius: {BORDER_RADIUS_SM};
     margin-right: 2px;
 }}
 
@@ -321,11 +331,11 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
 
 /* Group boxes (for settings dialog) */
 QGroupBox {{
-    font-weight: 500;
+    font-weight: {FONT_WEIGHT_MEDIUM};
     border: 1px solid {BORDER};
-    border-radius: 4px;
+    border-radius: {BORDER_RADIUS_SM};
     margin-top: 12px;
-    padding-top: 8px;
+    padding-top: {SPACING_SM};
     background-color: {BG_SECONDARY};
 }}
 
@@ -333,23 +343,24 @@ QGroupBox::title {{
     subcontrol-origin: margin;
     subcontrol-position: top left;
     left: 12px;
-    padding: 0 4px;
+    padding: 0 {SPACING_XS};
     color: {TEXT_PRIMARY};
+    font-weight: {FONT_WEIGHT_SEMI_BOLD};
 }}
 
 /* List widgets (for settings navigation) */
 QListWidget {{
     background-color: {BG_SECONDARY};
     border: 1px solid {BORDER};
-    border-radius: 4px;
+    border-radius: {BORDER_RADIUS_SM};
     color: {TEXT_PRIMARY};
     outline: none;
 }}
 
 QListWidget::item {{
-    padding: 8px 12px;
-    border-radius: 4px;
-    margin: 2px 4px;
+    padding: {SPACING_SM} 12px;
+    border-radius: {BORDER_RADIUS_SM};
+    margin: 2px {SPACING_XS};
 }}
 
 QListWidget::item:selected {{
@@ -380,21 +391,21 @@ QToolTip {{
     background-color: {BG_SECONDARY};
     color: {TEXT_PRIMARY};
     border: 1px solid {BORDER};
-    border-radius: 4px;
-    padding: 4px 8px;
+    border-radius: {BORDER_RADIUS_SM};
+    padding: {SPACING_XS} {SPACING_SM};
 }}
 
 /* Menu (if needed) */
 QMenu {{
     background-color: {BG_SECONDARY};
     border: 1px solid {BORDER};
-    border-radius: 4px;
-    padding: 4px;
+    border-radius: {BORDER_RADIUS_SM};
+    padding: {SPACING_XS};
 }}
 
 QMenu::item {{
     padding: 6px 24px 6px 12px;
-    border-radius: 2px;
+    border-radius: {BORDER_RADIUS_SM};
 }}
 
 QMenu::item:selected {{
@@ -403,9 +414,9 @@ QMenu::item:selected {{
 
 /* Spin boxes */
 QSpinBox, QDoubleSpinBox {{
-    padding: 4px 8px;
+    padding: {SPACING_XS} {SPACING_SM};
     border: 1px solid {BORDER};
-    border-radius: 4px;
+    border-radius: {BORDER_RADIUS_SM};
     background-color: {BG_TERTIARY};
     color: {TEXT_PRIMARY};
 }}
@@ -417,7 +428,7 @@ QSpinBox:focus, QDoubleSpinBox:focus {{
 /* Text edit (if needed) */
 QTextEdit, QPlainTextEdit {{
     border: 1px solid {BORDER};
-    border-radius: 4px;
+    border-radius: {BORDER_RADIUS_SM};
     background-color: {BG_TERTIARY};
     color: {TEXT_PRIMARY};
     selection-background-color: {ACCENT_PRIMARY};

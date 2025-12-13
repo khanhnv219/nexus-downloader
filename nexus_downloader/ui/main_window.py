@@ -107,7 +107,7 @@ class MainWindow(QMainWindow):
         top_bar_layout = QHBoxLayout()
         self.url_input = QLineEdit()
         self.url_input.setPlaceholderText("Enter YouTube URL")
-        self.get_urls_button = QPushButton("Get Download Urls")
+        self.get_urls_button = QPushButton("Get download URLs")
         self.settings_button = QPushButton("Settings") # Add Settings button
         top_bar_layout.addWidget(self.url_input)
         top_bar_layout.addWidget(self.get_urls_button)
@@ -272,9 +272,9 @@ class MainWindow(QMainWindow):
 
         # History action buttons
         history_buttons_layout = QHBoxLayout()
-        self.open_file_button = QPushButton("Open File")
+        self.open_file_button = QPushButton("Open file")
         self.open_file_button.setEnabled(False)
-        self.open_history_folder_button = QPushButton("Open Folder")
+        self.open_history_folder_button = QPushButton("Open folder")
         self.open_history_folder_button.setEnabled(False)
         self.redownload_button = QPushButton("Re-download")
         self.redownload_button.setEnabled(False)
@@ -291,18 +291,18 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.download_button)
         
         # Stop Download button
-        self.stop_download_button = QPushButton("Stop Download")
+        self.stop_download_button = QPushButton("Stop download")
         self.stop_download_button.setEnabled(False)  # Disabled by default
         main_layout.addWidget(self.stop_download_button)
 
         # Open Download Folder button
-        self.open_folder_button = QPushButton("Open Download Folder")
+        self.open_folder_button = QPushButton("Open download folder")
         main_layout.addWidget(self.open_folder_button)
 
         # Clear buttons layout
         clear_buttons_layout = QHBoxLayout()
-        self.clear_completed_button = QPushButton("Clear Completed")
-        self.clear_all_button = QPushButton("Clear List")
+        self.clear_completed_button = QPushButton("Clear completed")
+        self.clear_all_button = QPushButton("Clear list")
         clear_buttons_layout.addWidget(self.clear_completed_button)
         clear_buttons_layout.addWidget(self.clear_all_button)
         main_layout.addLayout(clear_buttons_layout)
@@ -824,7 +824,7 @@ class MainWindow(QMainWindow):
             self.get_urls_button.setText("Fetching URLs...")
             self.get_urls_button.setEnabled(False)
         else:
-            self.get_urls_button.setText("Get Download Urls")
+            self.get_urls_button.setText("Get download URLs")
             self.get_urls_button.setEnabled(True)
 
     def _set_download_button_loading_state(self, is_loading: bool, current: int = 0, total: int = 0) -> None:

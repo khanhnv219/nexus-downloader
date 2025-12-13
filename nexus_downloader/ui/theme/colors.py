@@ -54,3 +54,27 @@ FONT_FAMILY = '"Segoe UI", "Roboto", sans-serif'
 FONT_SIZE_DEFAULT = "14px"
 FONT_SIZE_SMALL = "12px"
 FONT_SIZE_TITLE = "16px"
+FONT_SIZE_HEADER = "13px"   # Table headers
+FONT_SIZE_LABEL = "12px"    # Form labels
+
+# Font weights (numeric values for Qt stylesheet)
+FONT_WEIGHT_NORMAL = 400
+FONT_WEIGHT_MEDIUM = 500
+FONT_WEIGHT_SEMI_BOLD = 600
+
+# Line heights (Qt has limited support - use as documentation/padding guide)
+LINE_HEIGHT_TIGHT = "1.3"    # Titles, compact text
+LINE_HEIGHT_NORMAL = "1.4"   # Labels, headers
+LINE_HEIGHT_RELAXED = "1.5"  # Body text
+
+# Spacing system (8px base unit)
+SPACING_XS = "4px"    # Tight: icon gaps, inline elements
+SPACING_SM = "8px"    # Default: element padding, small margins
+SPACING_MD = "16px"   # Medium: section padding, component margins
+SPACING_LG = "24px"   # Large: section separations
+SPACING_XL = "32px"   # Extra large: major divisions
+
+# Border radius
+BORDER_RADIUS_SM = "4px"   # Subtle rounding
+BORDER_RADIUS_MD = "6px"   # Default buttons, inputs
+BORDER_RADIUS_LG = "8px"   # Cards, dialogs

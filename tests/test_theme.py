@@ -30,6 +30,26 @@ from nexus_downloader.ui.theme.colors import (
     BORDER_FOCUS,
     TABLE_ALT_ROW,
     TABLE_SELECTION,
+    FONT_FAMILY,
+    FONT_SIZE_DEFAULT,
+    FONT_SIZE_SMALL,
+    FONT_SIZE_TITLE,
+    FONT_SIZE_HEADER,
+    FONT_SIZE_LABEL,
+    FONT_WEIGHT_NORMAL,
+    FONT_WEIGHT_MEDIUM,
+    FONT_WEIGHT_SEMI_BOLD,
+    LINE_HEIGHT_TIGHT,
+    LINE_HEIGHT_NORMAL,
+    LINE_HEIGHT_RELAXED,
+    SPACING_XS,
+    SPACING_SM,
+    SPACING_MD,
+    SPACING_LG,
+    SPACING_XL,
+    BORDER_RADIUS_SM,
+    BORDER_RADIUS_MD,
+    BORDER_RADIUS_LG,
 )
 
 
@@ -80,6 +100,89 @@ class TestColorConstants:
         """Border colors should be defined."""
         assert BORDER == "#2D3340"
         assert BORDER_FOCUS == "#00B4D8"
+
+
+# Typography constant tests
+class TestTypographyConstants:
+    """Tests for typography constants."""
+
+    def test_font_size_constants_exist(self):
+        """All font size constants should exist."""
+        assert FONT_SIZE_DEFAULT == "14px"
+        assert FONT_SIZE_SMALL == "12px"
+        assert FONT_SIZE_TITLE == "16px"
+        assert FONT_SIZE_HEADER == "13px"
+        assert FONT_SIZE_LABEL == "12px"
+
+    def test_font_weight_constants_exist(self):
+        """All font weight constants should exist."""
+        assert FONT_WEIGHT_NORMAL == 400
+        assert FONT_WEIGHT_MEDIUM == 500
+        assert FONT_WEIGHT_SEMI_BOLD == 600
+
+    def test_font_weight_values(self):
+        """Font weights should be standard CSS values."""
+        assert FONT_WEIGHT_NORMAL == 400
+        assert FONT_WEIGHT_MEDIUM == 500
+        assert FONT_WEIGHT_SEMI_BOLD == 600
+        # Weights should be in ascending order
+        assert FONT_WEIGHT_NORMAL < FONT_WEIGHT_MEDIUM < FONT_WEIGHT_SEMI_BOLD
+
+    def test_line_height_constants_exist(self):
+        """All line height constants should exist."""
+        assert LINE_HEIGHT_TIGHT == "1.3"
+        assert LINE_HEIGHT_NORMAL == "1.4"
+        assert LINE_HEIGHT_RELAXED == "1.5"
+
+    def test_font_sizes_are_valid_css(self):
+        """All font sizes should match the px pattern."""
+        px_pattern = re.compile(r'^\d+px$')
+        font_sizes = [
+            FONT_SIZE_DEFAULT, FONT_SIZE_SMALL, FONT_SIZE_TITLE,
+            FONT_SIZE_HEADER, FONT_SIZE_LABEL
+        ]
+        for size in font_sizes:
+            assert px_pattern.match(size), f"Invalid font size: {size}"
+
+    def test_font_family_is_defined(self):
+        """Font family should be defined with fallbacks."""
+        assert "Segoe UI" in FONT_FAMILY
+        assert "sans-serif" in FONT_FAMILY
+
+
+# Spacing constant tests
+class TestSpacingConstants:
+    """Tests for spacing constants."""
+
+    def test_spacing_constants_exist(self):
+        """All spacing constants should exist."""
+        assert SPACING_XS == "4px"
+        assert SPACING_SM == "8px"
+        assert SPACING_MD == "16px"
+        assert SPACING_LG == "24px"
+        assert SPACING_XL == "32px"
+
+    def test_spacing_values_are_multiples_of_4(self):
+        """All spacing values should be multiples of 4px."""
+        spacings = [SPACING_XS, SPACING_SM, SPACING_MD, SPACING_LG, SPACING_XL]
+        for spacing in spacings:
+            value = int(spacing.replace("px", ""))
+            assert value % 4 == 0, f"Spacing {spacing} is not a multiple of 4"
+
+    def test_border_radius_constants_exist(self):
+        """All border radius constants should exist."""
+        assert BORDER_RADIUS_SM == "4px"
+        assert BORDER_RADIUS_MD == "6px"
+        assert BORDER_RADIUS_LG == "8px"
+
+    def test_spacing_progression(self):
+        """Spacing values should be in ascending order."""
+        xs = int(SPACING_XS.replace("px", ""))
+        sm = int(SPACING_SM.replace("px", ""))
+        md = int(SPACING_MD.replace("px", ""))
+        lg = int(SPACING_LG.replace("px", ""))
+        xl = int(SPACING_XL.replace("px", ""))
+        assert xs < sm < md < lg < xl
 
 
 # Palette tests
@@ -194,6 +297,35 @@ class TestStylesheet:
         assert BG_PRIMARY in stylesheet
         assert TEXT_PRIMARY in stylesheet
         assert ACCENT_PRIMARY in stylesheet
+
+    def test_stylesheet_contains_font_weight(self):
+        """Stylesheet should contain font-weight declarations."""
+        stylesheet = get_application_stylesheet()
+        assert "font-weight:" in stylesheet
+        # Check that our weight values are used
+        assert str(FONT_WEIGHT_MEDIUM) in stylesheet
+        assert str(FONT_WEIGHT_SEMI_BOLD) in stylesheet
+
+    def test_stylesheet_uses_spacing_constants(self):
+        """Stylesheet should use spacing constant values."""
+        stylesheet = get_application_stylesheet()
+        # Check that spacing values appear in the stylesheet
+        assert SPACING_SM in stylesheet  # "8px"
+        assert SPACING_MD in stylesheet  # "16px"
+        assert SPACING_XS in stylesheet  # "4px"
+
+    def test_stylesheet_uses_border_radius_constants(self):
+        """Stylesheet should use border radius constant values."""
+        stylesheet = get_application_stylesheet()
+        # Check that border radius values appear in the stylesheet
+        assert BORDER_RADIUS_SM in stylesheet  # "4px"
+        assert BORDER_RADIUS_MD in stylesheet  # "6px"
+
+    def test_stylesheet_contains_font_size_header(self):
+        """Stylesheet should use FONT_SIZE_HEADER for table headers."""
+        stylesheet = get_application_stylesheet()
+        # Check that header font size is used in QHeaderView
+        assert FONT_SIZE_HEADER in stylesheet
 
 
 # Integration tests

@@ -232,7 +232,7 @@ def test_fetch_button_loading_state(qtbot, app):
     
     # Verify initial button state
     assert window.get_urls_button.isEnabled()
-    assert window.get_urls_button.text() == "Get Download Urls"
+    assert window.get_urls_button.text() == "Get download URLs"
     
     # Start fetch and verify loading state
     window.start_fetch()
@@ -244,7 +244,7 @@ def test_fetch_button_loading_state(qtbot, app):
     
     # Verify button is restored to normal state
     assert window.get_urls_button.isEnabled()
-    assert window.get_urls_button.text() == "Get Download Urls"
+    assert window.get_urls_button.text() == "Get download URLs"
 
 @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
 def test_fetch_button_error_state(qtbot, app):
@@ -263,7 +263,7 @@ def test_fetch_button_error_state(qtbot, app):
     
     # Verify button is restored to normal state
     assert window.get_urls_button.isEnabled()
-    assert window.get_urls_button.text() == "Get Download Urls"
+    assert window.get_urls_button.text() == "Get download URLs"
 
 @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
 def test_download_button_loading_state(qtbot, app):
