@@ -33,6 +33,10 @@ from nexus_downloader.core.yt_dlp_service import (
     get_audio_format_ext,
     SUBTITLE_LANGUAGE_OPTIONS_LIST,
     get_subtitle_lang_code,
+    DOWNLOAD_PRESETS_LIST,
+    DOWNLOAD_PRESET_TOOLTIPS,
+    get_preset_config,
+    detect_preset_from_settings,
 )
 from nexus_downloader.ui.settings_dialog import SettingsDialog
 from nexus_downloader.services.settings_service import SettingsService, AppSettings # Import SettingsService and AppSettings
@@ -99,6 +103,29 @@ class MainWindow(QMainWindow):
         select_all_layout.addStretch()
         main_layout.addLayout(select_all_layout)
 
+        # Preset selection
+        preset_layout = QHBoxLayout()
+        self.preset_label = QLabel("Preset:")
+        self.preset_combobox = QComboBox()
+        self.preset_combobox.addItems(DOWNLOAD_PRESETS_LIST)
+        # Set default from settings or detect from current quality/format
+        if self.app_settings.download_preset in DOWNLOAD_PRESETS_LIST:
+            self.preset_combobox.setCurrentText(self.app_settings.download_preset)
+        else:
+            detected = detect_preset_from_settings(
+                self.app_settings.video_resolution,
+                self.app_settings.video_format
+            )
+            self.preset_combobox.setCurrentText(detected)
+        # Add tooltips
+        for i in range(self.preset_combobox.count()):
+            preset_name = self.preset_combobox.itemText(i)
+            self.preset_combobox.setItemData(i, DOWNLOAD_PRESET_TOOLTIPS.get(preset_name, ""), Qt.ToolTipRole)
+        preset_layout.addWidget(self.preset_label)
+        preset_layout.addWidget(self.preset_combobox)
+        preset_layout.addStretch()
+        main_layout.addLayout(preset_layout)
+
         # Resolution and Format selection
         resolution_layout = QHBoxLayout()
         self.resolution_label = QLabel("Quality:")
@@ -148,8 +175,14 @@ class MainWindow(QMainWindow):
         # Connect subtitle checkbox state change
         self.subtitle_checkbox.stateChanged.connect(self._on_subtitle_checkbox_changed)
         
-        # Connect quality change to update format options
+        # Connect preset change to auto-apply quality/format
+        self.preset_combobox.currentTextChanged.connect(self._on_preset_changed)
+        
+        # Connect quality change to update format options and detect custom preset
         self.resolution_combobox.currentTextChanged.connect(self._on_quality_changed)
+        
+        # Connect format change to detect custom preset
+        self.format_combobox.currentTextChanged.connect(self._update_preset_from_current_settings)
 
         # Download list
         self.download_table = QTableWidget()
@@ -259,6 +292,9 @@ class MainWindow(QMainWindow):
         Args:
             quality (str): The selected quality option.
         """
+        # Block format combobox signal during update to prevent multiple custom detections
+        self.format_combobox.blockSignals(True)
+        
         if quality == "Audio Only":
             self.format_combobox.clear()
             self.format_combobox.addItems(AUDIO_FORMAT_OPTIONS_LIST)
@@ -269,6 +305,47 @@ class MainWindow(QMainWindow):
             self.format_combobox.addItems(VIDEO_FORMAT_OPTIONS_LIST)
             if self.app_settings.video_format in VIDEO_FORMAT_OPTIONS_LIST:
                 self.format_combobox.setCurrentText(self.app_settings.video_format)
+        
+        self.format_combobox.blockSignals(False)
+        
+        # Detect if current selection matches a preset
+        self._update_preset_from_current_settings()
+
+    def _on_preset_changed(self, preset_name: str):
+        """Applies preset settings when a preset is selected.
+        
+        Args:
+            preset_name (str): The selected preset name.
+        """
+        if preset_name == "Custom":
+            return  # Don't change anything for Custom
+        
+        config = get_preset_config(preset_name)
+        if config["quality"] and config["format"]:
+            # Block signals to prevent triggering custom detection
+            self.resolution_combobox.blockSignals(True)
+            self.format_combobox.blockSignals(True)
+            
+            # Apply quality
+            self.resolution_combobox.setCurrentText(config["quality"])
+            # Trigger format dropdown update for Audio Only
+            self._on_quality_changed(config["quality"])
+            # Apply format
+            self.format_combobox.setCurrentText(config["format"])
+            
+            self.resolution_combobox.blockSignals(False)
+            self.format_combobox.blockSignals(False)
+
+    def _update_preset_from_current_settings(self):
+        """Updates preset dropdown based on current quality/format selection."""
+        current_quality = self.resolution_combobox.currentText()
+        current_format = self.format_combobox.currentText()
+        detected_preset = detect_preset_from_settings(current_quality, current_format)
+        
+        # Block signals to prevent recursive calls
+        self.preset_combobox.blockSignals(True)
+        self.preset_combobox.setCurrentText(detected_preset)
+        self.preset_combobox.blockSignals(False)
 
     def _on_subtitle_checkbox_changed(self, state):
         """Handles state change of the subtitle checkbox."""
@@ -320,6 +397,7 @@ class MainWindow(QMainWindow):
             self.app_settings.subtitles_enabled,
             self.app_settings.subtitle_language,
             self.app_settings.embed_subtitles,
+            self.app_settings.download_preset,
             self
         )
         dialog.settings_saved.connect(self._on_settings_saved)
@@ -328,7 +406,8 @@ class MainWindow(QMainWindow):
     def _on_settings_saved(self, new_limit: int, new_download_path: str, new_cookies_path: str,
                            new_bilibili_cookies_path: str, new_xiaohongshu_cookies_path: str,
                            new_video_resolution: str, new_video_format: str, new_audio_format: str,
-                           new_subtitles_enabled: bool, new_subtitle_language: str, new_embed_subtitles: bool):
+                           new_subtitles_enabled: bool, new_subtitle_language: str, new_embed_subtitles: bool,
+                           new_download_preset: str):
         """Handles the settings_saved signal from the SettingsDialog."""
         self.app_settings.concurrent_downloads_limit = new_limit
         self.app_settings.download_folder_path = new_download_path
@@ -341,12 +420,17 @@ class MainWindow(QMainWindow):
         self.app_settings.subtitles_enabled = new_subtitles_enabled
         self.app_settings.subtitle_language = new_subtitle_language
         self.app_settings.embed_subtitles = new_embed_subtitles
+        self.app_settings.download_preset = new_download_preset
         
         # Update subtitle controls in main window
         self.subtitle_checkbox.setChecked(new_subtitles_enabled)
         if new_subtitle_language in SUBTITLE_LANGUAGE_OPTIONS_LIST:
             self.subtitle_language_combobox.setCurrentText(new_subtitle_language)
         self.embed_subtitles_checkbox.setChecked(new_embed_subtitles)
+        
+        # Update preset dropdown in main window
+        if new_download_preset in DOWNLOAD_PRESETS_LIST:
+            self.preset_combobox.setCurrentText(new_download_preset)
         
         try:
             self.settings_service.save_settings(self.app_settings)

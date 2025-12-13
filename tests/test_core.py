@@ -183,6 +183,107 @@ def test_subtitle_language_options_list_all_in_dict():
         assert lang in SUBTITLE_LANGUAGE_OPTIONS
 
 
+# Tests for download preset helper functions
+def test_get_preset_config_high_quality():
+    """Test 'High Quality' preset returns correct config."""
+    from nexus_downloader.core.yt_dlp_service import get_preset_config
+    config = get_preset_config("High Quality")
+    assert config["quality"] == "Best"
+    assert config["format"] == "MP4"
+
+
+def test_get_preset_config_balanced():
+    """Test 'Balanced' preset returns correct config."""
+    from nexus_downloader.core.yt_dlp_service import get_preset_config
+    config = get_preset_config("Balanced")
+    assert config["quality"] == "1080p"
+    assert config["format"] == "MP4"
+
+
+def test_get_preset_config_fast_download():
+    """Test 'Fast Download' preset returns correct config."""
+    from nexus_downloader.core.yt_dlp_service import get_preset_config
+    config = get_preset_config("Fast Download")
+    assert config["quality"] == "720p"
+    assert config["format"] == "MP4"
+
+
+def test_get_preset_config_audio_only():
+    """Test 'Audio Only' preset returns correct config."""
+    from nexus_downloader.core.yt_dlp_service import get_preset_config
+    config = get_preset_config("Audio Only")
+    assert config["quality"] == "Audio Only"
+    assert config["format"] == "M4A"
+
+
+def test_get_preset_config_custom():
+    """Test 'Custom' preset returns None values."""
+    from nexus_downloader.core.yt_dlp_service import get_preset_config
+    config = get_preset_config("Custom")
+    assert config["quality"] is None
+    assert config["format"] is None
+
+
+def test_get_preset_config_unknown():
+    """Test unknown preset returns None values."""
+    from nexus_downloader.core.yt_dlp_service import get_preset_config
+    config = get_preset_config("Unknown")
+    assert config["quality"] is None
+    assert config["format"] is None
+
+
+def test_detect_preset_high_quality():
+    """Test detection of High Quality preset."""
+    from nexus_downloader.core.yt_dlp_service import detect_preset_from_settings
+    assert detect_preset_from_settings("Best", "MP4") == "High Quality"
+
+
+def test_detect_preset_balanced():
+    """Test detection of Balanced preset."""
+    from nexus_downloader.core.yt_dlp_service import detect_preset_from_settings
+    assert detect_preset_from_settings("1080p", "MP4") == "Balanced"
+
+
+def test_detect_preset_fast_download():
+    """Test detection of Fast Download preset."""
+    from nexus_downloader.core.yt_dlp_service import detect_preset_from_settings
+    assert detect_preset_from_settings("720p", "MP4") == "Fast Download"
+
+
+def test_detect_preset_audio_only():
+    """Test detection of Audio Only preset."""
+    from nexus_downloader.core.yt_dlp_service import detect_preset_from_settings
+    assert detect_preset_from_settings("Audio Only", "M4A") == "Audio Only"
+
+
+def test_detect_preset_custom():
+    """Test detection of Custom preset for non-matching settings."""
+    from nexus_downloader.core.yt_dlp_service import detect_preset_from_settings
+    assert detect_preset_from_settings("4K", "MKV") == "Custom"
+    assert detect_preset_from_settings("1440p", "WebM") == "Custom"
+
+
+def test_download_presets_list_order():
+    """Test DOWNLOAD_PRESETS_LIST has expected order."""
+    from nexus_downloader.core.yt_dlp_service import DOWNLOAD_PRESETS_LIST
+    assert DOWNLOAD_PRESETS_LIST == ["High Quality", "Balanced", "Fast Download", "Audio Only", "Custom"]
+
+
+def test_download_presets_list_all_in_dict():
+    """Test all items in list have corresponding entries in dict."""
+    from nexus_downloader.core.yt_dlp_service import DOWNLOAD_PRESETS, DOWNLOAD_PRESETS_LIST
+    for preset in DOWNLOAD_PRESETS_LIST:
+        assert preset in DOWNLOAD_PRESETS
+
+
+def test_download_preset_tooltips_all_present():
+    """Test all presets have tooltips defined."""
+    from nexus_downloader.core.yt_dlp_service import DOWNLOAD_PRESET_TOOLTIPS, DOWNLOAD_PRESETS_LIST
+    for preset in DOWNLOAD_PRESETS_LIST:
+        assert preset in DOWNLOAD_PRESET_TOOLTIPS
+        assert len(DOWNLOAD_PRESET_TOOLTIPS[preset]) > 0
+
+
 @pytest.fixture
 def app(qapp):
     """Create a QApplication instance."""

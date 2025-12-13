@@ -19,6 +19,7 @@ class AppSettings:
     subtitles_enabled: bool = False
     subtitle_language: str = "English"
     embed_subtitles: bool = False
+    download_preset: str = "Balanced"
 
 class SettingsService:
     """

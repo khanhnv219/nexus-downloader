@@ -6,22 +6,23 @@ from nexus_downloader.core.yt_dlp_service import (
     VIDEO_FORMAT_OPTIONS_LIST,
     AUDIO_FORMAT_OPTIONS_LIST,
     SUBTITLE_LANGUAGE_OPTIONS_LIST,
+    DOWNLOAD_PRESETS_LIST,
 )
 
 class SettingsDialog(QDialog):
-    settings_saved = Signal(int, str, str, str, str, str, str, str, bool, str, bool)
+    settings_saved = Signal(int, str, str, str, str, str, str, str, bool, str, bool, str)
     # limit, download_path, fb_cookies, bilibili_cookies, xiaohongshu_cookies, resolution, 
-    # video_format, audio_format, subtitles_enabled, subtitle_language, embed_subtitles
+    # video_format, audio_format, subtitles_enabled, subtitle_language, embed_subtitles, download_preset
 
     def __init__(self, current_concurrent_downloads_limit: int, current_download_folder_path: str,
                  current_facebook_cookies_path: str, current_bilibili_cookies_path: str,
                  current_xiaohongshu_cookies_path: str, current_video_resolution: str,
                  current_video_format: str, current_audio_format: str,
                  current_subtitles_enabled: bool, current_subtitle_language: str,
-                 current_embed_subtitles: bool, parent=None):
+                 current_embed_subtitles: bool, current_download_preset: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.setFixedSize(400, 520)
+        self.setFixedSize(400, 560)
 
         self.current_concurrent_downloads_limit = current_concurrent_downloads_limit
         self.current_download_folder_path = current_download_folder_path
@@ -34,6 +35,7 @@ class SettingsDialog(QDialog):
         self.current_subtitles_enabled = current_subtitles_enabled
         self.current_subtitle_language = current_subtitle_language
         self.current_embed_subtitles = current_embed_subtitles
+        self.current_download_preset = current_download_preset
 
         self._init_ui()
 
@@ -124,6 +126,16 @@ class SettingsDialog(QDialog):
         audio_format_layout.addWidget(self.audio_format_combobox)
         main_layout.addLayout(audio_format_layout)
 
+        # Default Preset
+        preset_layout = QHBoxLayout()
+        self.preset_label = QLabel("Default Preset:")
+        self.preset_combobox = QComboBox()
+        self.preset_combobox.addItems(DOWNLOAD_PRESETS_LIST)
+        self.preset_combobox.setCurrentText(self.current_download_preset)
+        preset_layout.addWidget(self.preset_label)
+        preset_layout.addWidget(self.preset_combobox)
+        main_layout.addLayout(preset_layout)
+
         # Subtitles Section
         subtitles_enabled_layout = QHBoxLayout()
         self.subtitles_enabled_checkbox = QCheckBox("Enable Subtitles by Default")
@@ -183,10 +195,11 @@ class SettingsDialog(QDialog):
         new_subtitles_enabled = self.subtitles_enabled_checkbox.isChecked()
         new_subtitle_language = self.subtitle_language_combobox.currentText()
         new_embed_subtitles = self.embed_subtitles_checkbox.isChecked()
+        new_download_preset = self.preset_combobox.currentText()
         self.settings_saved.emit(
             new_limit, new_download_path, new_cookies_path, new_bilibili_cookies_path,
             new_xiaohongshu_cookies_path, new_video_resolution, new_video_format, new_audio_format,
-            new_subtitles_enabled, new_subtitle_language, new_embed_subtitles
+            new_subtitles_enabled, new_subtitle_language, new_embed_subtitles, new_download_preset
         )
         self.accept()
 
@@ -259,3 +272,6 @@ class SettingsDialog(QDialog):
 
     def get_embed_subtitles(self) -> bool:
         return self.embed_subtitles_checkbox.isChecked()
+
+    def get_download_preset(self) -> str:
+        return self.preset_combobox.currentText()

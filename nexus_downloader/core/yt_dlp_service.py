@@ -57,6 +57,28 @@ SUBTITLE_LANGUAGE_OPTIONS_LIST = [
     "Spanish", "French", "German", "Japanese", "Korean", "Portuguese", "Russian"
 ]
 
+# Download preset configurations
+# Key: Preset display name
+# Value: dict with 'quality' and 'format' keys
+DOWNLOAD_PRESETS = {
+    "High Quality": {"quality": "Best", "format": "MP4"},
+    "Balanced": {"quality": "1080p", "format": "MP4"},
+    "Fast Download": {"quality": "720p", "format": "MP4"},
+    "Audio Only": {"quality": "Audio Only", "format": "M4A"},
+    "Custom": {"quality": None, "format": None},
+}
+
+DOWNLOAD_PRESETS_LIST = ["High Quality", "Balanced", "Fast Download", "Audio Only", "Custom"]
+
+# Tooltips for each preset
+DOWNLOAD_PRESET_TOOLTIPS = {
+    "High Quality": "Best available quality in MP4 format. Larger file sizes.",
+    "Balanced": "1080p resolution in MP4 format. Good balance of quality and size.",
+    "Fast Download": "720p resolution in MP4 format. Smaller files, faster downloads.",
+    "Audio Only": "Extract audio only in M4A format. No video.",
+    "Custom": "Use your own quality and format settings.",
+}
+
 
 def get_format_string(quality: str) -> str:
     """Returns the yt-dlp format string for a given quality option.
@@ -104,6 +126,36 @@ def get_subtitle_lang_code(language_name: str) -> str:
         str: The yt-dlp language code, or "en" as fallback for unknown values.
     """
     return SUBTITLE_LANGUAGE_OPTIONS.get(language_name, "en")
+
+
+def get_preset_config(preset_name: str) -> dict:
+    """Returns the quality and format configuration for a given preset.
+
+    Args:
+        preset_name (str): The preset display name (e.g., "High Quality", "Balanced").
+
+    Returns:
+        dict: A dictionary with 'quality' and 'format' keys, or None values for "Custom".
+    """
+    return DOWNLOAD_PRESETS.get(preset_name, {"quality": None, "format": None})
+
+
+def detect_preset_from_settings(quality: str, format_name: str) -> str:
+    """Detects which preset matches the given quality and format settings.
+
+    Args:
+        quality (str): The quality setting (e.g., "Best", "1080p").
+        format_name (str): The format setting (e.g., "MP4", "M4A").
+
+    Returns:
+        str: The matching preset name, or "Custom" if no preset matches.
+    """
+    for preset_name, config in DOWNLOAD_PRESETS.items():
+        if preset_name == "Custom":
+            continue
+        if config["quality"] == quality and config["format"] == format_name:
+            return preset_name
+    return "Custom"
 
 
 class YtDlpService:

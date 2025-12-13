@@ -223,3 +223,26 @@ def test_save_and_load_all_subtitle_settings(settings_service):
     assert loaded.subtitles_enabled == True
     assert loaded.subtitle_language == "Japanese"
     assert loaded.embed_subtitles == True
+
+
+# Tests for download preset settings
+def test_default_download_preset():
+    """Test that default download preset is 'Balanced'."""
+    settings = AppSettings()
+    assert settings.download_preset == "Balanced"
+
+
+def test_settings_download_preset_persistence(settings_service):
+    """Test download preset setting saves and loads correctly."""
+    settings = AppSettings(download_preset="High Quality")
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert loaded.download_preset == "High Quality"
+
+
+def test_settings_download_preset_custom_persistence(settings_service):
+    """Test 'Custom' preset saves and loads correctly."""
+    settings = AppSettings(download_preset="Custom")
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert loaded.download_preset == "Custom"
