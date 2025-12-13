@@ -501,3 +501,69 @@ def test_generate_organized_path_uploader_none(qtbot, app):
     result = window._generate_organized_path(base_folder, "https://example.com/video", uploader=None)
     # Should just return base folder since no actual uploader
     assert result == base_folder
+
+
+# Tests for History tab (Story 8.3)
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_history_tab_exists(qtbot, app):
+    """Test that History tab is present in the main window."""
+    window = MainWindow()
+    assert hasattr(window, 'tab_widget')
+    assert window.tab_widget.count() == 2
+    assert window.tab_widget.tabText(0) == "Downloads"
+    assert window.tab_widget.tabText(1) == "History"
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_history_table_columns(qtbot, app):
+    """Test that history table has correct columns."""
+    window = MainWindow()
+    assert window.history_table.columnCount() == 5
+    headers = [window.history_table.horizontalHeaderItem(i).text() for i in range(5)]
+    assert headers == ["Date", "Title", "Platform", "Size", "Path"]
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_history_search_input_exists(qtbot, app):
+    """Test that history search input is present."""
+    window = MainWindow()
+    assert hasattr(window, 'history_search_input')
+    assert window.history_search_input.placeholderText() == "Search history..."
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_history_action_buttons_exist(qtbot, app):
+    """Test that history action buttons are present."""
+    window = MainWindow()
+    assert hasattr(window, 'open_file_button')
+    assert hasattr(window, 'open_history_folder_button')
+    assert hasattr(window, 'redownload_button')
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_history_buttons_disabled_by_default(qtbot, app):
+    """Test that history action buttons are disabled when no selection."""
+    window = MainWindow()
+    assert not window.open_file_button.isEnabled()
+    assert not window.open_history_folder_button.isEnabled()
+    assert not window.redownload_button.isEnabled()
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_format_file_size(qtbot, app):
+    """Test file size formatting helper."""
+    window = MainWindow()
+    assert window._format_file_size(500) == "500 B"
+    assert window._format_file_size(1024) == "1.0 KB"
+    assert window._format_file_size(1536) == "1.5 KB"
+    assert window._format_file_size(1048576) == "1.0 MB"
+    assert window._format_file_size(1073741824) == "1.00 GB"
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_format_date(qtbot, app):
+    """Test date formatting helper."""
+    window = MainWindow()
+    result = window._format_date("2025-12-13T15:30:00")
+    assert "Dec 13, 2025" in result
+    assert "PM" in result

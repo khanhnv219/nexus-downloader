@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QStyle,
     QProgressBar,
     QFileDialog,
+    QTabWidget,
 )
 from PySide6.QtCore import Qt
 from nexus_downloader.core.download_manager import DownloadManager
@@ -44,8 +45,9 @@ from nexus_downloader.core.yt_dlp_service import (
 from datetime import datetime
 from nexus_downloader.ui.settings_dialog import SettingsDialog
 from nexus_downloader.services.settings_service import SettingsService, AppSettings # Import SettingsService and AppSettings
-from nexus_downloader.core.data_models import DownloadStatus, DownloadItem
+from nexus_downloader.core.data_models import DownloadStatus, DownloadItem, HistoryEntry
 from nexus_downloader.core.url_validator import URLValidator
+from nexus_downloader.services.history_service import HistoryService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -64,6 +66,7 @@ class MainWindow(QMainWindow):
 
         self.settings_service = SettingsService() # Instantiate SettingsService
         self.app_settings = self._load_initial_settings() # Load settings on startup
+        self.history_service = HistoryService()  # Instantiate HistoryService
 
         self.download_manager = DownloadManager()
         self.download_manager.set_concurrent_downloads(self.app_settings.concurrent_downloads_limit) 
@@ -225,13 +228,63 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.path_preview_label)
         self._update_path_preview()
 
+        # Tab widget for Downloads and History
+        self.tab_widget = QTabWidget()
+        main_layout.addWidget(self.tab_widget)
+
+        # Downloads tab
+        downloads_tab = QWidget()
+        downloads_layout = QVBoxLayout(downloads_tab)
+        downloads_layout.setContentsMargins(0, 0, 0, 0)
+
         # Download list
         self.download_table = QTableWidget()
         self.download_table.setColumnCount(5)
         self.download_table.setHorizontalHeaderLabels(["", "Title", "Quality", "Format", "Status"])
         self.download_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.download_table.setSelectionMode(QTableWidget.NoSelection)
-        main_layout.addWidget(self.download_table)
+        downloads_layout.addWidget(self.download_table)
+
+        self.tab_widget.addTab(downloads_tab, "Downloads")
+
+        # History tab
+        self.history_tab = QWidget()
+        history_layout = QVBoxLayout(self.history_tab)
+        history_layout.setContentsMargins(0, 0, 0, 0)
+
+        # History search
+        self.history_search_input = QLineEdit()
+        self.history_search_input.setPlaceholderText("Search history...")
+        history_layout.addWidget(self.history_search_input)
+
+        # History table
+        self.history_table = QTableWidget()
+        self.history_table.setColumnCount(5)
+        self.history_table.setHorizontalHeaderLabels(["Date", "Title", "Platform", "Size", "Path"])
+        self.history_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.history_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.history_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.history_table.setColumnWidth(0, 150)
+        self.history_table.setColumnWidth(2, 100)
+        self.history_table.setColumnWidth(3, 80)
+        self.history_table.setColumnWidth(4, 200)
+        history_layout.addWidget(self.history_table)
+
+        # History action buttons
+        history_buttons_layout = QHBoxLayout()
+        self.open_file_button = QPushButton("Open File")
+        self.open_file_button.setEnabled(False)
+        self.open_history_folder_button = QPushButton("Open Folder")
+        self.open_history_folder_button.setEnabled(False)
+        self.redownload_button = QPushButton("Re-download")
+        self.redownload_button.setEnabled(False)
+        history_buttons_layout.addWidget(self.open_file_button)
+        history_buttons_layout.addWidget(self.open_history_folder_button)
+        history_buttons_layout.addWidget(self.redownload_button)
+        history_buttons_layout.addStretch()
+        history_layout.addLayout(history_buttons_layout)
+
+        self.tab_widget.addTab(self.history_tab, "History")
 
         # Download button
         self.download_button = QPushButton("Download")
@@ -269,6 +322,14 @@ class MainWindow(QMainWindow):
         self.download_manager.download_error.connect(self.on_download_error)
         self.download_manager.download_cancelled.connect(self.on_download_cancelled)  # Connect cancelled signal
         self.select_all_checkbox.stateChanged.connect(self._on_select_all_checkbox_state_changed)
+
+        # History tab signals
+        self.history_search_input.textChanged.connect(self._on_history_search_input_textChanged)
+        self.history_table.itemSelectionChanged.connect(self._on_history_table_selectionChanged)
+        self.open_file_button.clicked.connect(self._on_open_file_button_clicked)
+        self.open_history_folder_button.clicked.connect(self._on_open_history_folder_button_clicked)
+        self.redownload_button.clicked.connect(self._on_redownload_button_clicked)
+        self.tab_widget.currentChanged.connect(self._on_tab_changed)
 
     def _on_open_download_folder_button_clicked(self):
         """
@@ -990,6 +1051,60 @@ class MainWindow(QMainWindow):
         self.activateWindow()
         self.raise_()
 
+    def _record_to_history(self, video_url: str, status: str) -> None:
+        """Records a download to history.
+
+        Args:
+            video_url: The URL of the video.
+            status: The status string ("completed", "failed", "cancelled").
+        """
+        row = self._find_row_by_url(video_url)
+        if row == -1:
+            return
+
+        try:
+            title = self.download_table.item(row, 1).text() if self.download_table.item(row, 1) else "Unknown"
+            quality = self.download_table.item(row, 2).text() if self.download_table.item(row, 2) else "Unknown"
+            format_str = self.download_table.item(row, 3).text() if self.download_table.item(row, 3) else "Unknown"
+            platform = detect_platform(video_url)
+
+            # Construct file path
+            base_folder = self._current_output_folder or self.app_settings.download_folder_path
+            if self._organization_enabled:
+                base_folder = self._generate_organized_path(base_folder, video_url)
+
+            # Get format extension
+            if quality == "Audio Only":
+                ext = get_audio_format_ext(format_str)
+            else:
+                ext = get_video_format_ext(format_str)
+
+            safe_title = sanitize_folder_name(title)
+            file_path = os.path.join(base_folder, f"{safe_title}.{ext}")
+
+            # Get file size if file exists
+            file_size = 0
+            if status == "completed" and os.path.exists(file_path):
+                try:
+                    file_size = os.path.getsize(file_path)
+                except OSError:
+                    pass
+
+            entry = HistoryEntry(
+                url=video_url,
+                title=title,
+                platform=platform,
+                download_date=HistoryEntry.create_timestamp(),
+                file_path=file_path,
+                file_size=file_size,
+                quality=quality,
+                format=format_str,
+                status=status
+            )
+            self.history_service.add_entry(entry)
+        except Exception as e:
+            logger.error(f"Failed to record download to history: {e}")
+
     def on_download_finished(self, video_url, subtitle_status=""):
         """
         Handles the finished signal from the DownloadWorker for a specific video.
@@ -1012,6 +1127,9 @@ class MainWindow(QMainWindow):
                     progress_bar.setFormat("Completed (No Subs)")
                 else:
                     progress_bar.setFormat("Completed")
+
+        # Record to history
+        self._record_to_history(video_url, "completed")
         
         # Update progress
         self._download_completed_count += 1
@@ -1029,6 +1147,9 @@ class MainWindow(QMainWindow):
         if row != -1:
             self._update_item_status(row, DownloadStatus.ERROR)
         QMessageBox.warning(self, "Download Error", f"Error downloading {video_url}: {error_message}")
+
+        # Record to history
+        self._record_to_history(video_url, "failed")
         
         # Update progress (errors count as "completed")
         self._download_completed_count += 1
@@ -1049,6 +1170,9 @@ class MainWindow(QMainWindow):
         row = self._find_row_by_url(video_url)
         if row != -1:
             self._update_item_status(row, DownloadStatus.CANCELLED)
+
+        # Record to history
+        self._record_to_history(video_url, "cancelled")
         
         # Update progress (cancelled downloads count as "completed")
         self._download_completed_count += 1
@@ -1061,6 +1185,126 @@ class MainWindow(QMainWindow):
             self._set_download_button_loading_state(True, self._download_completed_count, self._download_queue_total)
         
         self._check_and_enable_button()
+
+    # History tab methods
+    def _format_file_size(self, size_bytes: int) -> str:
+        """Format bytes to human-readable string."""
+        if size_bytes < 1024:
+            return f"{size_bytes} B"
+        elif size_bytes < 1024 * 1024:
+            return f"{size_bytes / 1024:.1f} KB"
+        elif size_bytes < 1024 * 1024 * 1024:
+            return f"{size_bytes / (1024 * 1024):.1f} MB"
+        else:
+            return f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+
+    def _format_date(self, iso_date: str) -> str:
+        """Format ISO 8601 date to human-readable string."""
+        try:
+            dt = datetime.fromisoformat(iso_date)
+            return dt.strftime("%b %d, %Y %I:%M %p")
+        except ValueError:
+            return iso_date
+
+    def _populate_history_table(self, entries=None) -> None:
+        """Populates the history table with entries.
+
+        Args:
+            entries: List of HistoryEntry objects. If None, uses all history.
+        """
+        if entries is None:
+            entries = self.history_service.get_all()
+
+        self.history_table.setRowCount(0)
+        for entry in entries:
+            row = self.history_table.rowCount()
+            self.history_table.insertRow(row)
+
+            # Date
+            date_item = QTableWidgetItem(self._format_date(entry.download_date))
+            date_item.setData(Qt.UserRole, entry.id)
+            self.history_table.setItem(row, 0, date_item)
+
+            # Title
+            title_item = QTableWidgetItem(entry.title)
+            self.history_table.setItem(row, 1, title_item)
+
+            # Platform
+            platform_item = QTableWidgetItem(entry.platform)
+            self.history_table.setItem(row, 2, platform_item)
+
+            # Size
+            size_item = QTableWidgetItem(self._format_file_size(entry.file_size))
+            self.history_table.setItem(row, 3, size_item)
+
+            # Path
+            path_item = QTableWidgetItem(entry.file_path)
+            path_item.setToolTip(entry.file_path)
+            self.history_table.setItem(row, 4, path_item)
+
+    def _get_history_entry_at_row(self, row: int) -> HistoryEntry | None:
+        """Gets the HistoryEntry for a given row.
+
+        Args:
+            row: The row index.
+
+        Returns:
+            HistoryEntry if found, None otherwise.
+        """
+        if row < 0 or row >= self.history_table.rowCount():
+            return None
+        date_item = self.history_table.item(row, 0)
+        if date_item:
+            entry_id = date_item.data(Qt.UserRole)
+            return self.history_service.get_entry_by_id(entry_id)
+        return None
+
+    def _on_tab_changed(self, index: int) -> None:
+        """Handles tab change to refresh history when History tab is selected."""
+        if index == 1:  # History tab
+            self._populate_history_table()
+
+    def _on_history_search_input_textChanged(self, text: str) -> None:
+        """Handles history search input changes."""
+        entries = self.history_service.search(text)
+        self._populate_history_table(entries)
+
+    def _on_history_table_selectionChanged(self) -> None:
+        """Enables/disables history action buttons based on selection."""
+        has_selection = self.history_table.currentRow() >= 0
+        self.open_file_button.setEnabled(has_selection)
+        self.open_history_folder_button.setEnabled(has_selection)
+        self.redownload_button.setEnabled(has_selection)
+
+    def _on_open_file_button_clicked(self) -> None:
+        """Opens the selected history entry's file."""
+        row = self.history_table.currentRow()
+        entry = self._get_history_entry_at_row(row)
+        if entry:
+            if os.path.exists(entry.file_path):
+                os.startfile(entry.file_path)
+            else:
+                QMessageBox.warning(self, "File Not Found", f"File no longer exists:\n{entry.file_path}")
+
+    def _on_open_history_folder_button_clicked(self) -> None:
+        """Opens the folder containing the selected history entry's file."""
+        row = self.history_table.currentRow()
+        entry = self._get_history_entry_at_row(row)
+        if entry:
+            folder_path = os.path.dirname(entry.file_path)
+            if os.path.exists(folder_path):
+                os.startfile(folder_path)
+            else:
+                QMessageBox.warning(self, "Folder Not Found", f"Folder no longer exists:\n{folder_path}")
+
+    def _on_redownload_button_clicked(self) -> None:
+        """Re-downloads the selected history entry."""
+        row = self.history_table.currentRow()
+        entry = self._get_history_entry_at_row(row)
+        if entry:
+            self.url_input.setText(entry.url)
+            self.tab_widget.setCurrentIndex(0)  # Switch to Downloads tab
+            self.start_fetch()
 
     def _clear_completed_downloads(self):
         """Removes all completed downloads from the list."""
