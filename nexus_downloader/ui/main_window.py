@@ -62,7 +62,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Nexus Downloader")
         self.resize(1000, 700)  # Set initial window size (width x height)
-        self._load_stylesheet()
+        # Theme is now applied at application level in __main__.py
 
         self.settings_service = SettingsService() # Instantiate SettingsService
         self.app_settings = self._load_initial_settings() # Load settings on startup
@@ -340,12 +340,7 @@ class MainWindow(QMainWindow):
         else:
             QMessageBox.warning(self, "Directory Not Found", "The download directory is not set or does not exist.")
 
-    def _load_stylesheet(self):
-        """Loads the stylesheet for the application."""
-        style_file = os.path.join(os.path.dirname(__file__), "styles.qss")
-        if os.path.exists(style_file):
-            with open(style_file, "r") as f:
-                self.setStyleSheet(f.read())
+    # _load_stylesheet() removed - theme is now applied at application level in __main__.py
 
     def _on_select_all_checkbox_state_changed(self, state):
         """
