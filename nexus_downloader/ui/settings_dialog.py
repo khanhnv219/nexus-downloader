@@ -15,9 +15,11 @@ from nexus_downloader.core.yt_dlp_service import (
 )
 
 class SettingsDialog(QDialog):
-    settings_saved = Signal(int, str, str, str, str, str, str, str, bool, str, bool, str, dict)
+    settings_saved = Signal(int, str, str, str, str, str, str, str, bool, str, bool, str, dict,
+                            bool, bool, bool, bool, bool, str)
     # limit, download_path, fb_cookies, bilibili_cookies, xiaohongshu_cookies, resolution, 
-    # video_format, audio_format, subtitles_enabled, subtitle_language, embed_subtitles, download_preset, folder_presets
+    # video_format, audio_format, subtitles_enabled, subtitle_language, embed_subtitles, download_preset, folder_presets,
+    # organization_enabled, organize_by_platform, organize_by_date, organize_by_quality, organize_by_uploader, date_format
 
     def __init__(self, current_concurrent_downloads_limit: int, current_download_folder_path: str,
                  current_facebook_cookies_path: str, current_bilibili_cookies_path: str,
@@ -25,10 +27,17 @@ class SettingsDialog(QDialog):
                  current_video_format: str, current_audio_format: str,
                  current_subtitles_enabled: bool, current_subtitle_language: str,
                  current_embed_subtitles: bool, current_download_preset: str,
-                 current_folder_presets: Dict[str, str] = None, parent=None):
+                 current_folder_presets: Dict[str, str] = None,
+                 current_organization_enabled: bool = False,
+                 current_organize_by_platform: bool = False,
+                 current_organize_by_date: bool = False,
+                 current_organize_by_quality: bool = False,
+                 current_organize_by_uploader: bool = False,
+                 current_date_format: str = "YYYY-MM",
+                 parent=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.setFixedSize(400, 680)
+        self.setFixedSize(400, 780)
         
         self.current_folder_presets = current_folder_presets.copy() if current_folder_presets else {}
 
@@ -44,6 +53,12 @@ class SettingsDialog(QDialog):
         self.current_subtitle_language = current_subtitle_language
         self.current_embed_subtitles = current_embed_subtitles
         self.current_download_preset = current_download_preset
+        self.current_organization_enabled = current_organization_enabled
+        self.current_organize_by_platform = current_organize_by_platform
+        self.current_organize_by_date = current_organize_by_date
+        self.current_organize_by_quality = current_organize_by_quality
+        self.current_organize_by_uploader = current_organize_by_uploader
+        self.current_date_format = current_date_format
 
         self._init_ui()
 
@@ -193,6 +208,52 @@ class SettingsDialog(QDialog):
         self.add_preset_button.clicked.connect(self._on_add_preset_clicked)
         self.remove_preset_button.clicked.connect(self._on_remove_preset_clicked)
 
+        # Folder Organization Section
+        organization_group = QGroupBox("Folder Organization")
+        organization_layout = QVBoxLayout(organization_group)
+        
+        self.organization_enabled_checkbox = QCheckBox("Enable automatic folder organization")
+        self.organization_enabled_checkbox.setChecked(self.current_organization_enabled)
+        organization_layout.addWidget(self.organization_enabled_checkbox)
+        
+        # Nested organization options
+        self.organize_by_platform_checkbox = QCheckBox("Organize by platform")
+        self.organize_by_platform_checkbox.setChecked(self.current_organize_by_platform)
+        self.organize_by_platform_checkbox.setEnabled(self.current_organization_enabled)
+        organization_layout.addWidget(self.organize_by_platform_checkbox)
+        
+        self.organize_by_date_checkbox = QCheckBox("Organize by date")
+        self.organize_by_date_checkbox.setChecked(self.current_organize_by_date)
+        self.organize_by_date_checkbox.setEnabled(self.current_organization_enabled)
+        organization_layout.addWidget(self.organize_by_date_checkbox)
+        
+        # Date format selection
+        date_format_layout = QHBoxLayout()
+        self.date_format_label = QLabel("Date format:")
+        self.date_format_combo = QComboBox()
+        self.date_format_combo.addItems(["YYYY-MM-DD", "YYYY-MM", "YYYY"])
+        self.date_format_combo.setCurrentText(self.current_date_format)
+        self.date_format_combo.setEnabled(self.current_organization_enabled)
+        date_format_layout.addWidget(self.date_format_label)
+        date_format_layout.addWidget(self.date_format_combo)
+        date_format_layout.addStretch()
+        organization_layout.addLayout(date_format_layout)
+        
+        self.organize_by_quality_checkbox = QCheckBox("Organize by quality")
+        self.organize_by_quality_checkbox.setChecked(self.current_organize_by_quality)
+        self.organize_by_quality_checkbox.setEnabled(self.current_organization_enabled)
+        organization_layout.addWidget(self.organize_by_quality_checkbox)
+        
+        self.organize_by_uploader_checkbox = QCheckBox("Organize by uploader")
+        self.organize_by_uploader_checkbox.setChecked(self.current_organize_by_uploader)
+        self.organize_by_uploader_checkbox.setEnabled(self.current_organization_enabled)
+        organization_layout.addWidget(self.organize_by_uploader_checkbox)
+        
+        main_layout.addWidget(organization_group)
+        
+        # Connect organization master checkbox
+        self.organization_enabled_checkbox.stateChanged.connect(self._on_organization_enabled_checkbox_stateChanged)
+
         # Spacer
         main_layout.addStretch()
 
@@ -226,11 +287,19 @@ class SettingsDialog(QDialog):
         new_subtitle_language = self.subtitle_language_combobox.currentText()
         new_embed_subtitles = self.embed_subtitles_checkbox.isChecked()
         new_download_preset = self.preset_combobox.currentText()
+        new_organization_enabled = self.organization_enabled_checkbox.isChecked()
+        new_organize_by_platform = self.organize_by_platform_checkbox.isChecked()
+        new_organize_by_date = self.organize_by_date_checkbox.isChecked()
+        new_organize_by_quality = self.organize_by_quality_checkbox.isChecked()
+        new_organize_by_uploader = self.organize_by_uploader_checkbox.isChecked()
+        new_date_format = self.date_format_combo.currentText()
         self.settings_saved.emit(
             new_limit, new_download_path, new_cookies_path, new_bilibili_cookies_path,
             new_xiaohongshu_cookies_path, new_video_resolution, new_video_format, new_audio_format,
             new_subtitles_enabled, new_subtitle_language, new_embed_subtitles, new_download_preset,
-            self.current_folder_presets
+            self.current_folder_presets,
+            new_organization_enabled, new_organize_by_platform, new_organize_by_date,
+            new_organize_by_quality, new_organize_by_uploader, new_date_format
         )
         self.accept()
 
@@ -276,6 +345,15 @@ class SettingsDialog(QDialog):
         is_enabled = state == 2  # Qt.Checked
         self.subtitle_language_combobox.setEnabled(is_enabled)
         self.embed_subtitles_checkbox.setEnabled(is_enabled)
+
+    def _on_organization_enabled_checkbox_stateChanged(self, state):
+        """Handles the state change of the organization enabled checkbox."""
+        is_enabled = state == 2  # Qt.Checked
+        self.organize_by_platform_checkbox.setEnabled(is_enabled)
+        self.organize_by_date_checkbox.setEnabled(is_enabled)
+        self.organize_by_quality_checkbox.setEnabled(is_enabled)
+        self.organize_by_uploader_checkbox.setEnabled(is_enabled)
+        self.date_format_combo.setEnabled(is_enabled)
 
     def _on_browse_clicked(self):
         # Open a file dialog to select a directory

@@ -22,6 +22,12 @@ class AppSettings:
     download_preset: str = "Balanced"
     recent_folders: List[str] = field(default_factory=list)
     folder_presets: Dict[str, str] = field(default_factory=dict)
+    organization_enabled: bool = False
+    organize_by_platform: bool = False
+    organize_by_date: bool = False
+    organize_by_quality: bool = False
+    organize_by_uploader: bool = False
+    date_format: str = "YYYY-MM"
 
 class SettingsService:
     """

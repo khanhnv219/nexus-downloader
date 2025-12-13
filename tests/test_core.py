@@ -18,6 +18,8 @@ from nexus_downloader.core.yt_dlp_service import (
     SUBTITLE_LANGUAGE_OPTIONS,
     SUBTITLE_LANGUAGE_OPTIONS_LIST,
     get_subtitle_lang_code,
+    detect_platform,
+    sanitize_folder_name,
 )
 from nexus_downloader.core.download_manager import DownloadManager, FetchWorker, DownloadWorker
 import os
@@ -666,3 +668,72 @@ def test_download_manager_multiple_files_integration(qtbot, app):
     It is currently a placeholder and needs to be implemented with real URLs and assertions.
     """
     pytest.skip("Integration test for multiple file downloads is a placeholder.")
+
+
+# Tests for platform detection (Story 8.2)
+def test_detect_platform_youtube():
+    """Test YouTube URL detection."""
+    assert detect_platform("https://www.youtube.com/watch?v=abc123") == "YouTube"
+    assert detect_platform("https://youtu.be/abc123") == "YouTube"
+
+
+def test_detect_platform_tiktok():
+    """Test TikTok URL detection."""
+    assert detect_platform("https://www.tiktok.com/@user/video/123") == "TikTok"
+
+
+def test_detect_platform_facebook():
+    """Test Facebook URL detection."""
+    assert detect_platform("https://www.facebook.com/video.php?v=123") == "Facebook"
+    assert detect_platform("https://fb.watch/abc123") == "Facebook"
+
+
+def test_detect_platform_bilibili():
+    """Test Bilibili URL detection."""
+    assert detect_platform("https://www.bilibili.com/video/BV123") == "Bilibili"
+    assert detect_platform("https://b23.tv/abc123") == "Bilibili"
+
+
+def test_detect_platform_xiaohongshu():
+    """Test Xiaohongshu URL detection."""
+    assert detect_platform("https://www.xiaohongshu.com/explore/123") == "Xiaohongshu"
+    assert detect_platform("https://xhslink.com/abc123") == "Xiaohongshu"
+
+
+def test_detect_platform_unknown():
+    """Test fallback to 'Other' for unknown URLs."""
+    assert detect_platform("https://www.example.com/video") == "Other"
+    assert detect_platform("") == "Other"
+    assert detect_platform(None) == "Other"
+
+
+# Tests for folder name sanitization (Story 8.2)
+def test_sanitize_folder_name_special_chars():
+    """Test that special characters are replaced with underscores."""
+    assert sanitize_folder_name('File:Name') == "File_Name"
+    assert sanitize_folder_name('Name<>Test') == "Name_Test"
+    assert sanitize_folder_name('A/B\\C') == "A_B_C"
+    assert sanitize_folder_name('Video "Title"') == "Video _Title"
+    assert sanitize_folder_name('Test|File') == "Test_File"
+    assert sanitize_folder_name('Name?*Value') == "Name_Value"
+
+
+def test_sanitize_folder_name_empty():
+    """Test that empty string returns 'Unknown'."""
+    assert sanitize_folder_name("") == "Unknown"
+    assert sanitize_folder_name(None) == "Unknown"
+    assert sanitize_folder_name("   ") == "Unknown"
+
+
+def test_sanitize_folder_name_whitespace():
+    """Test that leading/trailing whitespace and dots are trimmed."""
+    assert sanitize_folder_name("  Test  ") == "Test"
+    assert sanitize_folder_name("...Name...") == "Name"
+    assert sanitize_folder_name("  ..Test..  ") == "Test"
+
+
+def test_sanitize_folder_name_consecutive_underscores():
+    """Test that multiple invalid chars become single underscore."""
+    assert sanitize_folder_name("A::B") == "A_B"
+    assert sanitize_folder_name("A<>B") == "A_B"
+    assert sanitize_folder_name("Test///Name") == "Test_Name"

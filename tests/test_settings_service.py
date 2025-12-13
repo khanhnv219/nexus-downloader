@@ -287,3 +287,37 @@ def test_recent_folders_max_five(settings_service):
     loaded = settings_service.load_settings()
     assert len(loaded.recent_folders) == 5
     assert loaded.recent_folders == folders
+
+
+# Tests for organization settings (Story 8.2)
+def test_default_organization_disabled(settings_service):
+    """Verify organization_enabled defaults to False."""
+    settings = settings_service.load_settings()
+    assert settings.organization_enabled is False
+
+
+def test_default_date_format(settings_service):
+    """Verify date_format defaults to 'YYYY-MM'."""
+    settings = settings_service.load_settings()
+    assert settings.date_format == "YYYY-MM"
+
+
+def test_organization_settings_persistence(settings_service):
+    """Verify all 6 organization settings save/load correctly."""
+    settings = AppSettings(
+        organization_enabled=True,
+        organize_by_platform=True,
+        organize_by_date=True,
+        organize_by_quality=False,
+        organize_by_uploader=True,
+        date_format="YYYY-MM-DD"
+    )
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    
+    assert loaded.organization_enabled is True
+    assert loaded.organize_by_platform is True
+    assert loaded.organize_by_date is True
+    assert loaded.organize_by_quality is False
+    assert loaded.organize_by_uploader is True
+    assert loaded.date_format == "YYYY-MM-DD"

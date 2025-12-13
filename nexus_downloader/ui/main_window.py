@@ -38,7 +38,10 @@ from nexus_downloader.core.yt_dlp_service import (
     DOWNLOAD_PRESET_TOOLTIPS,
     get_preset_config,
     detect_preset_from_settings,
+    detect_platform,
+    sanitize_folder_name,
 )
+from datetime import datetime
 from nexus_downloader.ui.settings_dialog import SettingsDialog
 from nexus_downloader.services.settings_service import SettingsService, AppSettings # Import SettingsService and AppSettings
 from nexus_downloader.core.data_models import DownloadStatus, DownloadItem
@@ -83,6 +86,14 @@ class MainWindow(QMainWindow):
         
         # Custom output folder tracking (None means use default)
         self._current_output_folder = None
+        
+        # Organization settings
+        self._organization_enabled = self.app_settings.organization_enabled
+        self._organize_by_platform = self.app_settings.organize_by_platform
+        self._organize_by_date = self.app_settings.organize_by_date
+        self._organize_by_quality = self.app_settings.organize_by_quality
+        self._organize_by_uploader = self.app_settings.organize_by_uploader
+        self._date_format = self.app_settings.date_format
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -207,6 +218,12 @@ class MainWindow(QMainWindow):
         # Connect folder selection signals
         self.folder_combobox.currentIndexChanged.connect(self._on_folder_combobox_changed)
         self.browse_folder_button.clicked.connect(self._on_browse_folder_clicked)
+
+        # Path preview label for folder organization
+        self.path_preview_label = QLabel()
+        self.path_preview_label.setStyleSheet("color: gray; font-style: italic;")
+        main_layout.addWidget(self.path_preview_label)
+        self._update_path_preview()
 
         # Download list
         self.download_table = QTableWidget()
@@ -334,6 +351,9 @@ class MainWindow(QMainWindow):
         
         # Detect if current selection matches a preset
         self._update_preset_from_current_settings()
+        
+        # Update path preview when quality changes
+        self._update_path_preview()
 
     def _on_preset_changed(self, preset_name: str):
         """Applies preset settings when a preset is selected.
@@ -499,6 +519,86 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Failed to save recent folders: {e}")
 
+    def _update_path_preview(self) -> None:
+        """Updates the path preview label based on organization settings."""
+        if not self._organization_enabled:
+            self.path_preview_label.setText("Organization: Disabled")
+            return
+        
+        # Build preview path components
+        components = []
+        
+        if self._organize_by_platform:
+            components.append("{Platform}")
+        
+        if self._organize_by_date:
+            # Show actual date format preview
+            now = datetime.now()
+            if self._date_format == "YYYY-MM-DD":
+                components.append(now.strftime("%Y-%m-%d"))
+            elif self._date_format == "YYYY-MM":
+                components.append(now.strftime("%Y-%m"))
+            elif self._date_format == "YYYY":
+                components.append(now.strftime("%Y"))
+        
+        if self._organize_by_quality:
+            quality = self.resolution_combobox.currentText()
+            components.append(quality)
+        
+        if self._organize_by_uploader:
+            components.append("{Uploader}")
+        
+        if components:
+            preview_path = "/".join(components) + "/"
+            self.path_preview_label.setText(f"Preview: {preview_path}")
+        else:
+            self.path_preview_label.setText("Organization: Enabled (no rules selected)")
+
+    def _generate_organized_path(self, base_folder: str, url: str, uploader: str = None) -> str:
+        """Generates an organized folder path based on organization settings.
+        
+        Args:
+            base_folder (str): The base output folder.
+            url (str): The video URL (for platform detection).
+            uploader (str, optional): The uploader/channel name.
+            
+        Returns:
+            str: The organized folder path.
+        """
+        if not self._organization_enabled:
+            return base_folder
+        
+        components = [base_folder]
+        
+        # Platform subfolder
+        if self._organize_by_platform:
+            platform = detect_platform(url)
+            components.append(sanitize_folder_name(platform))
+        
+        # Date subfolder
+        if self._organize_by_date:
+            now = datetime.now()
+            if self._date_format == "YYYY-MM-DD":
+                date_folder = now.strftime("%Y-%m-%d")
+            elif self._date_format == "YYYY-MM":
+                date_folder = now.strftime("%Y-%m")
+            elif self._date_format == "YYYY":
+                date_folder = now.strftime("%Y")
+            else:
+                date_folder = now.strftime("%Y-%m")  # Default fallback
+            components.append(date_folder)
+        
+        # Quality subfolder
+        if self._organize_by_quality:
+            quality = self.resolution_combobox.currentText()
+            components.append(sanitize_folder_name(quality))
+        
+        # Uploader subfolder
+        if self._organize_by_uploader and uploader:
+            components.append(sanitize_folder_name(uploader))
+        
+        return os.path.join(*components)
+
     def _load_initial_settings(self) -> AppSettings:
         """Loads settings on application startup, handling potential errors."""
         try:
@@ -545,6 +645,12 @@ class MainWindow(QMainWindow):
             self.app_settings.embed_subtitles,
             self.app_settings.download_preset,
             self.app_settings.folder_presets,
+            self.app_settings.organization_enabled,
+            self.app_settings.organize_by_platform,
+            self.app_settings.organize_by_date,
+            self.app_settings.organize_by_quality,
+            self.app_settings.organize_by_uploader,
+            self.app_settings.date_format,
             self
         )
         dialog.settings_saved.connect(self._on_settings_saved)
@@ -554,7 +660,10 @@ class MainWindow(QMainWindow):
                            new_bilibili_cookies_path: str, new_xiaohongshu_cookies_path: str,
                            new_video_resolution: str, new_video_format: str, new_audio_format: str,
                            new_subtitles_enabled: bool, new_subtitle_language: str, new_embed_subtitles: bool,
-                           new_download_preset: str, new_folder_presets: dict):
+                           new_download_preset: str, new_folder_presets: dict,
+                           new_organization_enabled: bool, new_organize_by_platform: bool,
+                           new_organize_by_date: bool, new_organize_by_quality: bool,
+                           new_organize_by_uploader: bool, new_date_format: str):
         """Handles the settings_saved signal from the SettingsDialog."""
         self.app_settings.concurrent_downloads_limit = new_limit
         self.app_settings.download_folder_path = new_download_path
@@ -569,6 +678,20 @@ class MainWindow(QMainWindow):
         self.app_settings.embed_subtitles = new_embed_subtitles
         self.app_settings.download_preset = new_download_preset
         self.app_settings.folder_presets = new_folder_presets
+        self.app_settings.organization_enabled = new_organization_enabled
+        self.app_settings.organize_by_platform = new_organize_by_platform
+        self.app_settings.organize_by_date = new_organize_by_date
+        self.app_settings.organize_by_quality = new_organize_by_quality
+        self.app_settings.organize_by_uploader = new_organize_by_uploader
+        self.app_settings.date_format = new_date_format
+        
+        # Update local organization settings
+        self._organization_enabled = new_organization_enabled
+        self._organize_by_platform = new_organize_by_platform
+        self._organize_by_date = new_organize_by_date
+        self._organize_by_quality = new_organize_by_quality
+        self._organize_by_uploader = new_organize_by_uploader
+        self._date_format = new_date_format
         
         # Update subtitle controls in main window
         self.subtitle_checkbox.setChecked(new_subtitles_enabled)
@@ -583,6 +706,9 @@ class MainWindow(QMainWindow):
         # Update folder combobox with new presets and update path display
         self._populate_folder_combobox()
         self.folder_path_display.setText(self._current_output_folder or new_download_path)
+        
+        # Update path preview
+        self._update_path_preview()
         
         try:
             self.settings_service.save_settings(self.app_settings)
@@ -681,11 +807,11 @@ class MainWindow(QMainWindow):
         """
         Starts downloading the selected videos.
         """
-        # Determine output folder
-        output_folder = self._current_output_folder or self.app_settings.download_folder_path
+        # Determine base output folder
+        base_folder = self._current_output_folder or self.app_settings.download_folder_path
         
-        # Validate folder before starting downloads
-        is_valid, error_message = self._validate_folder(output_folder)
+        # Validate base folder before starting downloads
+        is_valid, error_message = self._validate_folder(base_folder)
         if not is_valid:
             QMessageBox.critical(self, "Folder Error", f"Cannot download to the selected folder:\n{error_message}")
             return
@@ -701,6 +827,19 @@ class MainWindow(QMainWindow):
                     self._update_item_status(row, DownloadStatus.QUEUED)
         
         if video_urls_to_queue:
+            # Generate organized output folder if organization is enabled
+            # Use first URL to determine platform for the batch
+            first_url = video_urls_to_queue[0] if video_urls_to_queue else ""
+            output_folder = self._generate_organized_path(base_folder, first_url)
+            
+            # Create organized folder if it doesn't exist
+            if self._organization_enabled and output_folder != base_folder:
+                is_valid, error_message = self._validate_folder(output_folder)
+                if not is_valid:
+                    QMessageBox.critical(self, "Folder Error", 
+                                         f"Cannot create organized folder:\n{error_message}")
+                    return
+            
             # Initialize progress tracking
             self._download_queue_total = len(video_urls_to_queue)
             self._download_completed_count = 0

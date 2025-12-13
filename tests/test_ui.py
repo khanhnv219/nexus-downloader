@@ -29,7 +29,9 @@ class MockDownloadManager(QObject):
         """
         pass
 
-    def start_download_job(self, video_urls, video_resolution="best"):
+    def start_download_job(self, video_urls, video_resolution="best", video_format="mp4", audio_format="m4a",
+                           subtitles_enabled=False, subtitle_language="en", embed_subtitles=False,
+                           output_folder=None):
         """
         A mock method to start a download job.
         """
@@ -126,7 +128,7 @@ def test_main_window_download(qtbot, app):
         window.download_manager.download_finished.emit("some_url")
 
     assert blocker.args == ["some_url"]
-    progress_bar = window.download_table.cellWidget(0, 3)
+    progress_bar = window.download_table.cellWidget(0, 4)  # Status is column 4
     assert isinstance(progress_bar, QProgressBar)
     assert "Completed" in progress_bar.format()
 
@@ -147,7 +149,11 @@ def test_main_window_resolution_selection(qtbot, app):
 
     with patch.object(window.download_manager, 'start_download_job') as mock_start_download_job:
         window.start_download()
-        mock_start_download_job.assert_called_once_with(['some_url'], "height<=720")
+        mock_start_download_job.assert_called_once()
+        # Verify first argument is the URL list and second contains resolution filter
+        call_args = mock_start_download_job.call_args[0]
+        assert call_args[0] == ['some_url']
+        assert "720" in call_args[1]  # Resolution filter should contain 720
 
 @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
 def test_main_window_select_all_checkbox(qtbot, app):
@@ -336,3 +342,162 @@ def test_download_button_mixed_results(qtbot, app):
     # Button should be restored after all complete (including errors)
     assert window.download_button.isEnabled()
     assert window.download_button.text() == "Download"
+
+
+# Tests for path preview and organized path generation (Story 8.2)
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_path_preview_disabled(qtbot, app):
+    """Test path preview shows 'Disabled' when organization is disabled."""
+    window = MainWindow()
+    window._organization_enabled = False
+    window._update_path_preview()
+    assert window.path_preview_label.text() == "Organization: Disabled"
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_path_preview_no_rules_selected(qtbot, app):
+    """Test path preview shows message when organization enabled but no rules selected."""
+    window = MainWindow()
+    window._organization_enabled = True
+    window._organize_by_platform = False
+    window._organize_by_date = False
+    window._organize_by_quality = False
+    window._organize_by_uploader = False
+    window._update_path_preview()
+    assert window.path_preview_label.text() == "Organization: Enabled (no rules selected)"
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_path_preview_platform_only(qtbot, app):
+    """Test path preview shows platform placeholder when only platform rule enabled."""
+    window = MainWindow()
+    window._organization_enabled = True
+    window._organize_by_platform = True
+    window._organize_by_date = False
+    window._organize_by_quality = False
+    window._organize_by_uploader = False
+    window._update_path_preview()
+    assert window.path_preview_label.text() == "Preview: {Platform}/"
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_path_preview_quality_only(qtbot, app):
+    """Test path preview shows selected quality when only quality rule enabled."""
+    window = MainWindow()
+    window._organization_enabled = True
+    window._organize_by_platform = False
+    window._organize_by_date = False
+    window._organize_by_quality = True
+    window._organize_by_uploader = False
+    window.resolution_combobox.setCurrentText("1080p")
+    window._update_path_preview()
+    assert window.path_preview_label.text() == "Preview: 1080p/"
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_path_preview_multiple_rules(qtbot, app):
+    """Test path preview shows combined rules in correct order."""
+    window = MainWindow()
+    window._organization_enabled = True
+    window._organize_by_platform = True
+    window._organize_by_date = False
+    window._organize_by_quality = True
+    window._organize_by_uploader = True
+    window.resolution_combobox.setCurrentText("720p")
+    window._update_path_preview()
+    assert window.path_preview_label.text() == "Preview: {Platform}/720p/{Uploader}/"
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_generate_organized_path_disabled(qtbot, app):
+    """Test _generate_organized_path returns base folder when organization disabled."""
+    window = MainWindow()
+    window._organization_enabled = False
+    base_folder = "/downloads"
+    result = window._generate_organized_path(base_folder, "https://youtube.com/watch?v=abc")
+    assert result == base_folder
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_generate_organized_path_platform(qtbot, app):
+    """Test _generate_organized_path adds platform subfolder."""
+    import os
+    window = MainWindow()
+    window._organization_enabled = True
+    window._organize_by_platform = True
+    window._organize_by_date = False
+    window._organize_by_quality = False
+    window._organize_by_uploader = False
+    
+    base_folder = "/downloads"
+    result = window._generate_organized_path(base_folder, "https://youtube.com/watch?v=abc")
+    assert result == os.path.join("/downloads", "YouTube")
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_generate_organized_path_quality(qtbot, app):
+    """Test _generate_organized_path adds quality subfolder."""
+    import os
+    window = MainWindow()
+    window._organization_enabled = True
+    window._organize_by_platform = False
+    window._organize_by_date = False
+    window._organize_by_quality = True
+    window._organize_by_uploader = False
+    window.resolution_combobox.setCurrentText("1080p")
+    
+    base_folder = "/downloads"
+    result = window._generate_organized_path(base_folder, "https://example.com/video")
+    assert result == os.path.join("/downloads", "1080p")
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_generate_organized_path_uploader(qtbot, app):
+    """Test _generate_organized_path adds sanitized uploader subfolder."""
+    import os
+    window = MainWindow()
+    window._organization_enabled = True
+    window._organize_by_platform = False
+    window._organize_by_date = False
+    window._organize_by_quality = False
+    window._organize_by_uploader = True
+    
+    base_folder = "/downloads"
+    result = window._generate_organized_path(base_folder, "https://example.com/video", uploader="Test:Channel")
+    # Sanitization replaces : with _
+    assert result == os.path.join("/downloads", "Test_Channel")
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_generate_organized_path_combined(qtbot, app):
+    """Test _generate_organized_path combines multiple rules in correct order."""
+    import os
+    window = MainWindow()
+    window._organization_enabled = True
+    window._organize_by_platform = True
+    window._organize_by_date = False
+    window._organize_by_quality = True
+    window._organize_by_uploader = True
+    window.resolution_combobox.setCurrentText("720p")
+    
+    base_folder = "/downloads"
+    result = window._generate_organized_path(base_folder, "https://tiktok.com/@user/video/123", uploader="MyChannel")
+    # Order: Platform/Quality/Uploader
+    assert result == os.path.join("/downloads", "TikTok", "720p", "MyChannel")
+
+
+@patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+def test_generate_organized_path_uploader_none(qtbot, app):
+    """Test _generate_organized_path skips uploader when None provided."""
+    import os
+    window = MainWindow()
+    window._organization_enabled = True
+    window._organize_by_platform = False
+    window._organize_by_date = False
+    window._organize_by_quality = False
+    window._organize_by_uploader = True  # Enabled but uploader is None
+    
+    base_folder = "/downloads"
+    result = window._generate_organized_path(base_folder, "https://example.com/video", uploader=None)
+    # Should just return base folder since no actual uploader
+    assert result == base_folder

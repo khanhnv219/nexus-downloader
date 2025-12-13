@@ -1,6 +1,7 @@
 """
 This module provides a service to interact with the yt-dlp library.
 """
+import re
 import yt_dlp
 
 # Quality display name -> yt-dlp format string
@@ -69,6 +70,16 @@ DOWNLOAD_PRESETS = {
 }
 
 DOWNLOAD_PRESETS_LIST = ["High Quality", "Balanced", "Fast Download", "Audio Only", "Custom"]
+
+# Platform detection patterns for folder organization
+# Key: Platform display name, Value: List of URL patterns (regex)
+PLATFORM_PATTERNS = {
+    "YouTube": [r"youtube\.com", r"youtu\.be"],
+    "TikTok": [r"tiktok\.com"],
+    "Facebook": [r"facebook\.com", r"fb\.watch"],
+    "Bilibili": [r"bilibili\.com", r"b23\.tv"],
+    "Xiaohongshu": [r"xiaohongshu\.com", r"xhslink\.com"],
+}
 
 # Tooltips for each preset
 DOWNLOAD_PRESET_TOOLTIPS = {
@@ -156,6 +167,61 @@ def detect_preset_from_settings(quality: str, format_name: str) -> str:
         if config["quality"] == quality and config["format"] == format_name:
             return preset_name
     return "Custom"
+
+
+def detect_platform(url: str) -> str:
+    """Detects the platform name from a video URL.
+
+    Args:
+        url (str): The video URL to analyze.
+
+    Returns:
+        str: The platform name (e.g., "YouTube", "TikTok") or "Other" if unknown.
+    """
+    if not url:
+        return "Other"
+    
+    url_lower = url.lower()
+    for platform_name, patterns in PLATFORM_PATTERNS.items():
+        for pattern in patterns:
+            if re.search(pattern, url_lower):
+                return platform_name
+    return "Other"
+
+
+def sanitize_folder_name(name: str) -> str:
+    """Sanitizes a string for use as a folder name.
+
+    Replaces invalid characters with underscores and handles edge cases.
+
+    Args:
+        name (str): The string to sanitize.
+
+    Returns:
+        str: A sanitized folder name safe for filesystem use.
+    """
+    if not name or not name.strip():
+        return "Unknown"
+    
+    # Strip leading/trailing whitespace and dots
+    result = name.strip().strip('.')
+    
+    if not result:
+        return "Unknown"
+    
+    # Replace invalid characters: < > : " / \ | ? *
+    result = re.sub(r'[<>:"/\\|?*]', '_', result)
+    
+    # Replace multiple consecutive underscores with single underscore
+    result = re.sub(r'_+', '_', result)
+    
+    # Strip leading/trailing underscores that may have been created
+    result = result.strip('_')
+    
+    if not result:
+        return "Unknown"
+    
+    return result
 
 
 class YtDlpService:
