@@ -1,7 +1,7 @@
 import json
 import os
 from dataclasses import dataclass, asdict, field
-from typing import Dict, Any
+from typing import Dict, Any, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,6 +20,8 @@ class AppSettings:
     subtitle_language: str = "English"
     embed_subtitles: bool = False
     download_preset: str = "Balanced"
+    recent_folders: List[str] = field(default_factory=list)
+    folder_presets: Dict[str, str] = field(default_factory=dict)
 
 class SettingsService:
     """

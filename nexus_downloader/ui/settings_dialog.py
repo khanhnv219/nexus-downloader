@@ -1,5 +1,10 @@
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QPushButton, QLineEdit, QFileDialog, QComboBox, QCheckBox
+from PySide6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QPushButton, 
+    QLineEdit, QFileDialog, QComboBox, QCheckBox, QListWidget, QInputDialog,
+    QMessageBox, QGroupBox
+)
 from PySide6.QtCore import Signal
+from typing import Dict
 
 from nexus_downloader.core.yt_dlp_service import (
     QUALITY_OPTIONS_LIST,
@@ -10,19 +15,22 @@ from nexus_downloader.core.yt_dlp_service import (
 )
 
 class SettingsDialog(QDialog):
-    settings_saved = Signal(int, str, str, str, str, str, str, str, bool, str, bool, str)
+    settings_saved = Signal(int, str, str, str, str, str, str, str, bool, str, bool, str, dict)
     # limit, download_path, fb_cookies, bilibili_cookies, xiaohongshu_cookies, resolution, 
-    # video_format, audio_format, subtitles_enabled, subtitle_language, embed_subtitles, download_preset
+    # video_format, audio_format, subtitles_enabled, subtitle_language, embed_subtitles, download_preset, folder_presets
 
     def __init__(self, current_concurrent_downloads_limit: int, current_download_folder_path: str,
                  current_facebook_cookies_path: str, current_bilibili_cookies_path: str,
                  current_xiaohongshu_cookies_path: str, current_video_resolution: str,
                  current_video_format: str, current_audio_format: str,
                  current_subtitles_enabled: bool, current_subtitle_language: str,
-                 current_embed_subtitles: bool, current_download_preset: str, parent=None):
+                 current_embed_subtitles: bool, current_download_preset: str,
+                 current_folder_presets: Dict[str, str] = None, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.setFixedSize(400, 560)
+        self.setFixedSize(400, 680)
+        
+        self.current_folder_presets = current_folder_presets.copy() if current_folder_presets else {}
 
         self.current_concurrent_downloads_limit = current_concurrent_downloads_limit
         self.current_download_folder_path = current_download_folder_path
@@ -163,6 +171,28 @@ class SettingsDialog(QDialog):
         # Connect subtitle checkbox to enable/disable dependent controls
         self.subtitles_enabled_checkbox.stateChanged.connect(self._on_subtitles_enabled_changed)
 
+        # Folder Presets Section
+        presets_group = QGroupBox("Folder Presets")
+        presets_layout = QVBoxLayout(presets_group)
+        
+        self.presets_list = QListWidget()
+        self.presets_list.setMaximumHeight(80)
+        self._refresh_presets_list()
+        presets_layout.addWidget(self.presets_list)
+        
+        presets_buttons_layout = QHBoxLayout()
+        self.add_preset_button = QPushButton("Add Preset")
+        self.remove_preset_button = QPushButton("Remove Preset")
+        presets_buttons_layout.addWidget(self.add_preset_button)
+        presets_buttons_layout.addWidget(self.remove_preset_button)
+        presets_layout.addLayout(presets_buttons_layout)
+        
+        main_layout.addWidget(presets_group)
+        
+        # Connect preset buttons
+        self.add_preset_button.clicked.connect(self._on_add_preset_clicked)
+        self.remove_preset_button.clicked.connect(self._on_remove_preset_clicked)
+
         # Spacer
         main_layout.addStretch()
 
@@ -199,9 +229,47 @@ class SettingsDialog(QDialog):
         self.settings_saved.emit(
             new_limit, new_download_path, new_cookies_path, new_bilibili_cookies_path,
             new_xiaohongshu_cookies_path, new_video_resolution, new_video_format, new_audio_format,
-            new_subtitles_enabled, new_subtitle_language, new_embed_subtitles, new_download_preset
+            new_subtitles_enabled, new_subtitle_language, new_embed_subtitles, new_download_preset,
+            self.current_folder_presets
         )
         self.accept()
+
+    def _refresh_presets_list(self) -> None:
+        """Refreshes the presets list widget with current folder presets."""
+        self.presets_list.clear()
+        for name, path in self.current_folder_presets.items():
+            self.presets_list.addItem(f"{name}: {path}")
+
+    def _on_add_preset_clicked(self) -> None:
+        """Opens dialogs to add a new folder preset."""
+        name, ok = QInputDialog.getText(self, "Add Preset", "Enter preset name:")
+        if not ok or not name.strip():
+            return
+        
+        name = name.strip()
+        if name in self.current_folder_presets:
+            QMessageBox.warning(self, "Duplicate Name", f"A preset named '{name}' already exists.")
+            return
+        
+        folder = QFileDialog.getExistingDirectory(self, f"Select folder for preset '{name}'")
+        if folder:
+            self.current_folder_presets[name] = folder
+            self._refresh_presets_list()
+
+    def _on_remove_preset_clicked(self) -> None:
+        """Removes the selected preset from the list."""
+        current_item = self.presets_list.currentItem()
+        if not current_item:
+            QMessageBox.information(self, "No Selection", "Please select a preset to remove.")
+            return
+        
+        # Extract preset name from list item text (format: "name: path")
+        item_text = current_item.text()
+        preset_name = item_text.split(":")[0].strip()
+        
+        if preset_name in self.current_folder_presets:
+            del self.current_folder_presets[preset_name]
+            self._refresh_presets_list()
 
     def _on_subtitles_enabled_changed(self, state):
         """Handles the state change of the subtitles enabled checkbox."""

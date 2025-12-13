@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
     QStyle,
     QProgressBar,
+    QFileDialog,
 )
 from PySide6.QtCore import Qt
 from nexus_downloader.core.download_manager import DownloadManager
@@ -79,6 +80,9 @@ class MainWindow(QMainWindow):
         self.tray_icon.setIcon(self.style().standardIcon(QStyle.SP_ArrowDown))
         self.tray_icon.setVisible(True)
         self.tray_icon.messageClicked.connect(self._on_notification_clicked)
+        
+        # Custom output folder tracking (None means use default)
+        self._current_output_folder = None
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -183,6 +187,26 @@ class MainWindow(QMainWindow):
         
         # Connect format change to detect custom preset
         self.format_combobox.currentTextChanged.connect(self._update_preset_from_current_settings)
+
+        # Output folder selection
+        folder_layout = QHBoxLayout()
+        self.folder_label = QLabel("Output Folder:")
+        self.folder_combobox = QComboBox()
+        self.folder_combobox.setMinimumWidth(150)
+        self._populate_folder_combobox()
+        self.folder_path_display = QLineEdit()
+        self.folder_path_display.setReadOnly(True)
+        self.folder_path_display.setText(self.app_settings.download_folder_path)
+        self.browse_folder_button = QPushButton("Browse...")
+        folder_layout.addWidget(self.folder_label)
+        folder_layout.addWidget(self.folder_combobox)
+        folder_layout.addWidget(self.folder_path_display, 1)  # stretch factor 1
+        folder_layout.addWidget(self.browse_folder_button)
+        main_layout.addLayout(folder_layout)
+        
+        # Connect folder selection signals
+        self.folder_combobox.currentIndexChanged.connect(self._on_folder_combobox_changed)
+        self.browse_folder_button.clicked.connect(self._on_browse_folder_clicked)
 
         # Download list
         self.download_table = QTableWidget()
@@ -353,6 +377,128 @@ class MainWindow(QMainWindow):
         self.subtitle_language_combobox.setEnabled(is_enabled)
         self.embed_subtitles_checkbox.setEnabled(is_enabled)
 
+    def _populate_folder_combobox(self) -> None:
+        """Populates the folder combobox with default, recent folders, and presets."""
+        self.folder_combobox.blockSignals(True)
+        self.folder_combobox.clear()
+        
+        # Add "Use Default" as first option
+        self.folder_combobox.addItem("Use Default", "default")
+        
+        # Add recent folders
+        if self.app_settings.recent_folders:
+            self.folder_combobox.insertSeparator(self.folder_combobox.count())
+            for folder in self.app_settings.recent_folders:
+                display_name = os.path.basename(folder) or folder
+                self.folder_combobox.addItem(f"Recent: {display_name}", folder)
+        
+        # Add folder presets
+        if self.app_settings.folder_presets:
+            self.folder_combobox.insertSeparator(self.folder_combobox.count())
+            for name, path in self.app_settings.folder_presets.items():
+                self.folder_combobox.addItem(f"Preset: {name}", path)
+        
+        self.folder_combobox.blockSignals(False)
+
+    def _on_folder_combobox_changed(self, index: int) -> None:
+        """Handles folder combobox selection change.
+        
+        Args:
+            index (int): The selected index.
+        """
+        if index < 0:
+            return
+        
+        folder_path = self.folder_combobox.itemData(index)
+        if folder_path == "default":
+            self._current_output_folder = None
+            self.folder_path_display.setText(self.app_settings.download_folder_path)
+        else:
+            self._current_output_folder = folder_path
+            self.folder_path_display.setText(folder_path)
+
+    def _on_browse_folder_clicked(self) -> None:
+        """Opens a folder dialog for selecting custom output folder."""
+        start_dir = self._current_output_folder or self.app_settings.download_folder_path
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Select Output Folder",
+            start_dir,
+            QFileDialog.ShowDirsOnly
+        )
+        if folder:
+            folder = os.path.normpath(folder)
+            self._current_output_folder = folder
+            self.folder_path_display.setText(folder)
+            # Reset combobox to show custom selection
+            self.folder_combobox.blockSignals(True)
+            self.folder_combobox.setCurrentIndex(-1)
+            self.folder_combobox.blockSignals(False)
+
+    def _validate_folder(self, folder_path: str) -> tuple:
+        """Validates that a folder exists and is writable.
+        
+        Args:
+            folder_path (str): The folder path to validate.
+            
+        Returns:
+            tuple: (is_valid: bool, error_message: str)
+        """
+        if not folder_path:
+            return False, "No folder path specified."
+        
+        # Check if folder exists
+        if not os.path.exists(folder_path):
+            # Try to create it
+            try:
+                os.makedirs(folder_path, exist_ok=True)
+                logger.info(f"Created folder: {folder_path}")
+            except OSError as e:
+                return False, f"Could not create folder: {e}"
+        
+        # Check if it's a directory
+        if not os.path.isdir(folder_path):
+            return False, "The specified path is not a directory."
+        
+        # Check if writable
+        if not os.access(folder_path, os.W_OK):
+            return False, "The folder is not writable."
+        
+        return True, ""
+
+    def _add_recent_folder(self, folder_path: str) -> None:
+        """Adds a folder to the recent folders list.
+        
+        Maintains max 5 recent folders. Duplicates are moved to the front.
+        
+        Args:
+            folder_path (str): The folder path to add.
+        """
+        folder_path = os.path.normpath(folder_path)
+        
+        # Don't add the default folder to recent
+        default_folder = os.path.normpath(self.app_settings.download_folder_path)
+        if folder_path == default_folder:
+            return
+        
+        # Remove if already exists (will re-add at front)
+        if folder_path in self.app_settings.recent_folders:
+            self.app_settings.recent_folders.remove(folder_path)
+        
+        # Add to front
+        self.app_settings.recent_folders.insert(0, folder_path)
+        
+        # Limit to 5 folders
+        self.app_settings.recent_folders = self.app_settings.recent_folders[:5]
+        
+        # Save settings
+        try:
+            self.settings_service.save_settings(self.app_settings)
+            # Update combobox
+            self._populate_folder_combobox()
+        except Exception as e:
+            logger.error(f"Failed to save recent folders: {e}")
+
     def _load_initial_settings(self) -> AppSettings:
         """Loads settings on application startup, handling potential errors."""
         try:
@@ -398,6 +544,7 @@ class MainWindow(QMainWindow):
             self.app_settings.subtitle_language,
             self.app_settings.embed_subtitles,
             self.app_settings.download_preset,
+            self.app_settings.folder_presets,
             self
         )
         dialog.settings_saved.connect(self._on_settings_saved)
@@ -407,7 +554,7 @@ class MainWindow(QMainWindow):
                            new_bilibili_cookies_path: str, new_xiaohongshu_cookies_path: str,
                            new_video_resolution: str, new_video_format: str, new_audio_format: str,
                            new_subtitles_enabled: bool, new_subtitle_language: str, new_embed_subtitles: bool,
-                           new_download_preset: str):
+                           new_download_preset: str, new_folder_presets: dict):
         """Handles the settings_saved signal from the SettingsDialog."""
         self.app_settings.concurrent_downloads_limit = new_limit
         self.app_settings.download_folder_path = new_download_path
@@ -421,6 +568,7 @@ class MainWindow(QMainWindow):
         self.app_settings.subtitle_language = new_subtitle_language
         self.app_settings.embed_subtitles = new_embed_subtitles
         self.app_settings.download_preset = new_download_preset
+        self.app_settings.folder_presets = new_folder_presets
         
         # Update subtitle controls in main window
         self.subtitle_checkbox.setChecked(new_subtitles_enabled)
@@ -431,6 +579,10 @@ class MainWindow(QMainWindow):
         # Update preset dropdown in main window
         if new_download_preset in DOWNLOAD_PRESETS_LIST:
             self.preset_combobox.setCurrentText(new_download_preset)
+        
+        # Update folder combobox with new presets and update path display
+        self._populate_folder_combobox()
+        self.folder_path_display.setText(self._current_output_folder or new_download_path)
         
         try:
             self.settings_service.save_settings(self.app_settings)
@@ -529,6 +681,15 @@ class MainWindow(QMainWindow):
         """
         Starts downloading the selected videos.
         """
+        # Determine output folder
+        output_folder = self._current_output_folder or self.app_settings.download_folder_path
+        
+        # Validate folder before starting downloads
+        is_valid, error_message = self._validate_folder(output_folder)
+        if not is_valid:
+            QMessageBox.critical(self, "Folder Error", f"Cannot download to the selected folder:\n{error_message}")
+            return
+        
         video_urls_to_queue = []
         for row in range(self.download_table.rowCount()):
             checkbox_item = self.download_table.cellWidget(row, 0)
@@ -569,8 +730,13 @@ class MainWindow(QMainWindow):
             
             self.download_manager.start_download_job(
                 video_urls_to_queue, resolution_format, video_format, audio_format,
-                subtitles_enabled, subtitle_language, embed_subtitles
+                subtitles_enabled, subtitle_language, embed_subtitles,
+                output_folder
             )
+            
+            # Add to recent folders if using custom folder
+            if self._current_output_folder:
+                self._add_recent_folder(self._current_output_folder)
     
     def stop_download(self) -> None:
         """Stops all active and queued downloads.

@@ -268,7 +268,8 @@ class DownloadManager(QObject):
         self.fetch_thread.start()
 
     def start_download_job(self, video_urls, video_resolution="best", video_format="mp4", audio_format="m4a",
-                           subtitles_enabled=False, subtitle_language="en", embed_subtitles=False):
+                           subtitles_enabled=False, subtitle_language="en", embed_subtitles=False,
+                           output_folder=None):
         """
         Adds video URLs to the download queue and starts downloads if threads are available.
 
@@ -280,6 +281,7 @@ class DownloadManager(QObject):
             subtitles_enabled (bool): Whether to download subtitles. Defaults to False.
             subtitle_language (str): The yt-dlp language code for subtitles. Defaults to "en".
             embed_subtitles (bool): Whether to embed subtitles in the video. Defaults to False.
+            output_folder (str, optional): Custom output folder. If None, uses default from settings.
         """
         # Clear cancellation event for new download session
         self._cancellation_event.clear()
@@ -290,6 +292,7 @@ class DownloadManager(QObject):
         self.subtitles_enabled = subtitles_enabled
         self.subtitle_language = subtitle_language
         self.embed_subtitles = embed_subtitles
+        self._output_folder = output_folder  # Store custom output folder
         for url in video_urls:
             self.download_queue.append(url)
         self._start_next_download()
@@ -301,9 +304,11 @@ class DownloadManager(QObject):
         while self.download_queue and self.thread_pool.activeThreadCount() < self.thread_pool.maxThreadCount():
             video_url = self.download_queue.popleft()
             cookies_path = self._get_cookies_path_for_url(video_url)
+            # Use custom output folder if set, otherwise use default from settings
+            download_folder = self._output_folder if hasattr(self, '_output_folder') and self._output_folder else self.app_settings.download_folder_path
             worker = DownloadWorker(
                 video_url, 
-                self.app_settings.download_folder_path, 
+                download_folder, 
                 self.video_resolution,
                 self.video_format,
                 self.audio_format,

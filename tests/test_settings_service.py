@@ -246,3 +246,44 @@ def test_settings_download_preset_custom_persistence(settings_service):
     settings_service.save_settings(settings)
     loaded = settings_service.load_settings()
     assert loaded.download_preset == "Custom"
+
+
+# Tests for recent_folders and folder_presets settings
+def test_default_recent_folders_empty():
+    """Test that default recent_folders is an empty list."""
+    settings = AppSettings()
+    assert settings.recent_folders == []
+
+
+def test_default_folder_presets_empty():
+    """Test that default folder_presets is an empty dict."""
+    settings = AppSettings()
+    assert settings.folder_presets == {}
+
+
+def test_recent_folders_persistence(settings_service):
+    """Test recent_folders setting saves and loads correctly."""
+    folders = ["/path/to/folder1", "/path/to/folder2", "/path/to/folder3"]
+    settings = AppSettings(recent_folders=folders)
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert loaded.recent_folders == folders
+
+
+def test_folder_presets_persistence(settings_service):
+    """Test folder_presets setting saves and loads correctly."""
+    presets = {"Work": "/work/videos", "Personal": "/home/videos"}
+    settings = AppSettings(folder_presets=presets)
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert loaded.folder_presets == presets
+
+
+def test_recent_folders_max_five(settings_service):
+    """Test that recent_folders can store up to 5 entries."""
+    folders = [f"/path/to/folder{i}" for i in range(5)]
+    settings = AppSettings(recent_folders=folders)
+    settings_service.save_settings(settings)
+    loaded = settings_service.load_settings()
+    assert len(loaded.recent_folders) == 5
+    assert loaded.recent_folders == folders
