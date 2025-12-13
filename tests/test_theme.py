@@ -327,6 +327,19 @@ class TestStylesheet:
         # Check that header font size is used in QHeaderView
         assert FONT_SIZE_HEADER in stylesheet
 
+    def test_stylesheet_contains_secondary_button_styling(self):
+        """Stylesheet should contain secondary button selector."""
+        stylesheet = get_application_stylesheet()
+        assert 'QPushButton[secondary="true"]' in stylesheet
+        # Should have transparent background for secondary buttons
+        assert "background-color: transparent" in stylesheet
+
+    def test_stylesheet_contains_secondary_button_states(self):
+        """Stylesheet should contain hover and pressed states for secondary buttons."""
+        stylesheet = get_application_stylesheet()
+        assert 'QPushButton[secondary="true"]:hover' in stylesheet
+        assert 'QPushButton[secondary="true"]:pressed' in stylesheet
+
 
 # Integration tests
 class TestThemeIntegration:

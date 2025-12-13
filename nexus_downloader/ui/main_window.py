@@ -109,6 +109,7 @@ class MainWindow(QMainWindow):
         self.url_input.setPlaceholderText("Enter YouTube URL")
         self.get_urls_button = QPushButton("Get download URLs")
         self.settings_button = QPushButton("Settings") # Add Settings button
+        self.settings_button.setProperty("secondary", True)
         top_bar_layout.addWidget(self.url_input)
         top_bar_layout.addWidget(self.get_urls_button)
         top_bar_layout.addWidget(self.settings_button) # Add Settings button to layout
@@ -212,6 +213,7 @@ class MainWindow(QMainWindow):
         self.folder_path_display.setReadOnly(True)
         self.folder_path_display.setText(self.app_settings.download_folder_path)
         self.browse_folder_button = QPushButton("Browse...")
+        self.browse_folder_button.setProperty("secondary", True)
         folder_layout.addWidget(self.folder_label)
         folder_layout.addWidget(self.folder_combobox)
         folder_layout.addWidget(self.folder_path_display, 1)  # stretch factor 1
@@ -273,10 +275,13 @@ class MainWindow(QMainWindow):
         # History action buttons
         history_buttons_layout = QHBoxLayout()
         self.open_file_button = QPushButton("Open file")
+        self.open_file_button.setProperty("secondary", True)
         self.open_file_button.setEnabled(False)
         self.open_history_folder_button = QPushButton("Open folder")
+        self.open_history_folder_button.setProperty("secondary", True)
         self.open_history_folder_button.setEnabled(False)
         self.redownload_button = QPushButton("Re-download")
+        self.redownload_button.setProperty("secondary", True)
         self.redownload_button.setEnabled(False)
         history_buttons_layout.addWidget(self.open_file_button)
         history_buttons_layout.addWidget(self.open_history_folder_button)
@@ -292,17 +297,21 @@ class MainWindow(QMainWindow):
         
         # Stop Download button
         self.stop_download_button = QPushButton("Stop download")
+        self.stop_download_button.setProperty("secondary", True)
         self.stop_download_button.setEnabled(False)  # Disabled by default
         main_layout.addWidget(self.stop_download_button)
 
         # Open Download Folder button
         self.open_folder_button = QPushButton("Open download folder")
+        self.open_folder_button.setProperty("secondary", True)
         main_layout.addWidget(self.open_folder_button)
 
         # Clear buttons layout
         clear_buttons_layout = QHBoxLayout()
         self.clear_completed_button = QPushButton("Clear completed")
+        self.clear_completed_button.setProperty("secondary", True)
         self.clear_all_button = QPushButton("Clear list")
+        self.clear_all_button.setProperty("secondary", True)
         clear_buttons_layout.addWidget(self.clear_completed_button)
         clear_buttons_layout.addWidget(self.clear_all_button)
         main_layout.addLayout(clear_buttons_layout)

@@ -128,6 +128,11 @@ QPushButton[secondary="true"]:hover {{
     border-color: {TEXT_SECONDARY};
 }}
 
+QPushButton[secondary="true"]:pressed {{
+    background-color: {BG_TERTIARY};
+    border-color: {ACCENT_PRIMARY};
+}}
+
 /* Combo boxes */
 QComboBox {{
     padding: 6px {SPACING_SM};
