@@ -23,6 +23,9 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QFileDialog,
     QTabWidget,
+    QFrame,
+    QSpacerItem,
+    QSizePolicy,
 )
 from PySide6.QtCore import Qt
 from nexus_downloader.core.download_manager import DownloadManager
@@ -102,32 +105,38 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        # Top bar for URL input and Settings button
-        top_bar_layout = QHBoxLayout()
+        # ============================================
+        # TOP BAR ZONE
+        # ============================================
+        self.top_bar_zone = QFrame()
+        self.top_bar_zone.setObjectName("topBarZone")
+        top_bar_zone_layout = QVBoxLayout(self.top_bar_zone)
+        top_bar_zone_layout.setContentsMargins(16, 16, 16, 16)
+        top_bar_zone_layout.setSpacing(16)
+
+        # Row 1: URL input + Get URLs button + Settings button (right-aligned)
+        url_row_layout = QHBoxLayout()
+        url_row_layout.setSpacing(8)
         self.url_input = QLineEdit()
         self.url_input.setPlaceholderText("Enter YouTube URL")
         self.get_urls_button = QPushButton("Get download URLs")
-        self.settings_button = QPushButton("Settings") # Add Settings button
+        self.settings_button = QPushButton("Settings")
         self.settings_button.setProperty("secondary", True)
-        top_bar_layout.addWidget(self.url_input)
-        top_bar_layout.addWidget(self.get_urls_button)
-        top_bar_layout.addWidget(self.settings_button) # Add Settings button to layout
-        main_layout.addLayout(top_bar_layout) # Use top_bar_layout instead of url_layout
+        url_row_layout.addWidget(self.url_input, 1)
+        url_row_layout.addWidget(self.get_urls_button)
+        url_row_layout.addWidget(self.settings_button)
+        top_bar_zone_layout.addLayout(url_row_layout)
 
-        # Select All checkbox
-        select_all_layout = QHBoxLayout()
-        self.select_all_checkbox = QCheckBox("Select All")
-        select_all_layout.addWidget(self.select_all_checkbox)
-        select_all_layout.addStretch()
-        main_layout.addLayout(select_all_layout)
-
-        # Preset selection
-        preset_layout = QHBoxLayout()
+        # Row 2: Preset + Quality + Format (horizontal group)
+        options_row_layout = QHBoxLayout()
+        options_row_layout.setSpacing(8)
+        
         self.preset_label = QLabel("Preset:")
         self.preset_combobox = QComboBox()
         self.preset_combobox.addItems(DOWNLOAD_PRESETS_LIST)
-        # Set default from settings or detect from current quality/format
         if self.app_settings.download_preset in DOWNLOAD_PRESETS_LIST:
             self.preset_combobox.setCurrentText(self.app_settings.download_preset)
         else:
@@ -136,40 +145,35 @@ class MainWindow(QMainWindow):
                 self.app_settings.video_format
             )
             self.preset_combobox.setCurrentText(detected)
-        # Add tooltips
         for i in range(self.preset_combobox.count()):
             preset_name = self.preset_combobox.itemText(i)
             self.preset_combobox.setItemData(i, DOWNLOAD_PRESET_TOOLTIPS.get(preset_name, ""), Qt.ToolTipRole)
-        preset_layout.addWidget(self.preset_label)
-        preset_layout.addWidget(self.preset_combobox)
-        preset_layout.addStretch()
-        main_layout.addLayout(preset_layout)
-
-        # Resolution and Format selection
-        resolution_layout = QHBoxLayout()
+        options_row_layout.addWidget(self.preset_label)
+        options_row_layout.addWidget(self.preset_combobox)
+        options_row_layout.addSpacing(16)
+        
         self.resolution_label = QLabel("Quality:")
         self.resolution_combobox = QComboBox()
         self.resolution_combobox.addItems(QUALITY_OPTIONS_LIST)
-        # Set default quality from settings
         if self.app_settings.video_resolution in QUALITY_OPTIONS_LIST:
             self.resolution_combobox.setCurrentText(self.app_settings.video_resolution)
-        resolution_layout.addWidget(self.resolution_label)
-        resolution_layout.addWidget(self.resolution_combobox)
+        options_row_layout.addWidget(self.resolution_label)
+        options_row_layout.addWidget(self.resolution_combobox)
+        options_row_layout.addSpacing(16)
         
-        # Format selection
         self.format_label = QLabel("Format:")
         self.format_combobox = QComboBox()
         self.format_combobox.addItems(VIDEO_FORMAT_OPTIONS_LIST)
-        # Set default format from settings
         if self.app_settings.video_format in VIDEO_FORMAT_OPTIONS_LIST:
             self.format_combobox.setCurrentText(self.app_settings.video_format)
-        resolution_layout.addWidget(self.format_label)
-        resolution_layout.addWidget(self.format_combobox)
-        
-        main_layout.addLayout(resolution_layout)
-        
-        # Subtitle controls
+        options_row_layout.addWidget(self.format_label)
+        options_row_layout.addWidget(self.format_combobox)
+        options_row_layout.addStretch()
+        top_bar_zone_layout.addLayout(options_row_layout)
+
+        # Row 3: Subtitle controls
         subtitle_layout = QHBoxLayout()
+        subtitle_layout.setSpacing(8)
         self.subtitle_checkbox = QCheckBox("Download Subtitles")
         self.subtitle_checkbox.setChecked(self.app_settings.subtitles_enabled)
         subtitle_layout.addWidget(self.subtitle_checkbox)
@@ -187,9 +191,8 @@ class MainWindow(QMainWindow):
         self.embed_subtitles_checkbox.setChecked(self.app_settings.embed_subtitles)
         self.embed_subtitles_checkbox.setEnabled(self.app_settings.subtitles_enabled)
         subtitle_layout.addWidget(self.embed_subtitles_checkbox)
-        
         subtitle_layout.addStretch()
-        main_layout.addLayout(subtitle_layout)
+        top_bar_zone_layout.addLayout(subtitle_layout)
         
         # Connect subtitle checkbox state change
         self.subtitle_checkbox.stateChanged.connect(self._on_subtitle_checkbox_changed)
@@ -203,8 +206,9 @@ class MainWindow(QMainWindow):
         # Connect format change to detect custom preset
         self.format_combobox.currentTextChanged.connect(self._update_preset_from_current_settings)
 
-        # Output folder selection
+        # Row 4: Output folder selection
         folder_layout = QHBoxLayout()
+        folder_layout.setSpacing(8)
         self.folder_label = QLabel("Output Folder:")
         self.folder_combobox = QComboBox()
         self.folder_combobox.setMinimumWidth(150)
@@ -216,9 +220,9 @@ class MainWindow(QMainWindow):
         self.browse_folder_button.setProperty("secondary", True)
         folder_layout.addWidget(self.folder_label)
         folder_layout.addWidget(self.folder_combobox)
-        folder_layout.addWidget(self.folder_path_display, 1)  # stretch factor 1
+        folder_layout.addWidget(self.folder_path_display, 1)
         folder_layout.addWidget(self.browse_folder_button)
-        main_layout.addLayout(folder_layout)
+        top_bar_zone_layout.addLayout(folder_layout)
         
         # Connect folder selection signals
         self.folder_combobox.currentIndexChanged.connect(self._on_folder_combobox_changed)
@@ -227,17 +231,33 @@ class MainWindow(QMainWindow):
         # Path preview label for folder organization
         self.path_preview_label = QLabel()
         self.path_preview_label.setStyleSheet("color: gray; font-style: italic;")
-        main_layout.addWidget(self.path_preview_label)
+        top_bar_zone_layout.addWidget(self.path_preview_label)
         self._update_path_preview()
+
+        main_layout.addWidget(self.top_bar_zone)
+
+        # ============================================
+        # CENTER ZONE
+        # ============================================
+        self.center_zone = QFrame()
+        self.center_zone.setObjectName("centerZone")
+        center_zone_layout = QVBoxLayout(self.center_zone)
+        center_zone_layout.setContentsMargins(16, 8, 16, 8)
+        center_zone_layout.setSpacing(0)
 
         # Tab widget for Downloads and History
         self.tab_widget = QTabWidget()
-        main_layout.addWidget(self.tab_widget)
+        center_zone_layout.addWidget(self.tab_widget)
 
         # Downloads tab
         downloads_tab = QWidget()
         downloads_layout = QVBoxLayout(downloads_tab)
-        downloads_layout.setContentsMargins(0, 0, 0, 0)
+        downloads_layout.setContentsMargins(0, 8, 0, 0)
+        downloads_layout.setSpacing(8)
+
+        # Select All checkbox (moved from top-level to Downloads tab)
+        self.select_all_checkbox = QCheckBox("Select All")
+        downloads_layout.addWidget(self.select_all_checkbox)
 
         # Download list
         self.download_table = QTableWidget()
@@ -252,7 +272,8 @@ class MainWindow(QMainWindow):
         # History tab
         self.history_tab = QWidget()
         history_layout = QVBoxLayout(self.history_tab)
-        history_layout.setContentsMargins(0, 0, 0, 0)
+        history_layout.setContentsMargins(0, 8, 0, 0)
+        history_layout.setSpacing(8)
 
         # History search
         self.history_search_input = QLineEdit()
@@ -274,6 +295,7 @@ class MainWindow(QMainWindow):
 
         # History action buttons
         history_buttons_layout = QHBoxLayout()
+        history_buttons_layout.setSpacing(8)
         self.open_file_button = QPushButton("Open file")
         self.open_file_button.setProperty("secondary", True)
         self.open_file_button.setEnabled(False)
@@ -291,30 +313,40 @@ class MainWindow(QMainWindow):
 
         self.tab_widget.addTab(self.history_tab, "History")
 
-        # Download button
+        main_layout.addWidget(self.center_zone, 1)  # stretch=1 to fill available space
+
+        # ============================================
+        # BOTTOM BAR ZONE
+        # ============================================
+        self.bottom_bar_zone = QFrame()
+        self.bottom_bar_zone.setObjectName("bottomBarZone")
+        bottom_bar_zone_layout = QHBoxLayout(self.bottom_bar_zone)
+        bottom_bar_zone_layout.setContentsMargins(16, 16, 16, 16)
+        bottom_bar_zone_layout.setSpacing(8)
+
+        # Primary actions group (left-aligned)
         self.download_button = QPushButton("Download")
-        main_layout.addWidget(self.download_button)
-        
-        # Stop Download button
         self.stop_download_button = QPushButton("Stop download")
         self.stop_download_button.setProperty("secondary", True)
-        self.stop_download_button.setEnabled(False)  # Disabled by default
-        main_layout.addWidget(self.stop_download_button)
+        self.stop_download_button.setEnabled(False)
+        bottom_bar_zone_layout.addWidget(self.download_button)
+        bottom_bar_zone_layout.addWidget(self.stop_download_button)
 
-        # Open Download Folder button
+        # Horizontal spacer between primary and secondary groups
+        bottom_bar_zone_layout.addStretch()
+
+        # Secondary actions group (right-aligned)
         self.open_folder_button = QPushButton("Open download folder")
         self.open_folder_button.setProperty("secondary", True)
-        main_layout.addWidget(self.open_folder_button)
-
-        # Clear buttons layout
-        clear_buttons_layout = QHBoxLayout()
         self.clear_completed_button = QPushButton("Clear completed")
         self.clear_completed_button.setProperty("secondary", True)
         self.clear_all_button = QPushButton("Clear list")
         self.clear_all_button.setProperty("secondary", True)
-        clear_buttons_layout.addWidget(self.clear_completed_button)
-        clear_buttons_layout.addWidget(self.clear_all_button)
-        main_layout.addLayout(clear_buttons_layout)
+        bottom_bar_zone_layout.addWidget(self.open_folder_button)
+        bottom_bar_zone_layout.addWidget(self.clear_completed_button)
+        bottom_bar_zone_layout.addWidget(self.clear_all_button)
+
+        main_layout.addWidget(self.bottom_bar_zone)
 
         # Connect signals
         self.get_urls_button.clicked.connect(self.start_fetch)

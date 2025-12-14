@@ -400,6 +400,21 @@ QToolTip {{
     padding: {SPACING_XS} {SPACING_SM};
 }}
 
+/* Zone container styling for main window layout */
+QFrame#topBarZone {{
+    background-color: {BG_SECONDARY};
+    border-bottom: 1px solid {BORDER};
+}}
+
+QFrame#centerZone {{
+    background-color: {BG_PRIMARY};
+}}
+
+QFrame#bottomBarZone {{
+    background-color: {BG_SECONDARY};
+    border-top: 1px solid {BORDER};
+}}
+
 /* Menu (if needed) */
 QMenu {{
     background-color: {BG_SECONDARY};

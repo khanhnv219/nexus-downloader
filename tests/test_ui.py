@@ -567,3 +567,109 @@ def test_format_date(qtbot, app):
     result = window._format_date("2025-12-13T15:30:00")
     assert "Dec 13, 2025" in result
     assert "PM" in result
+
+
+# Tests for Main Window Layout Zones (Story 9.2)
+class TestMainWindowLayout:
+    """Tests for the three-zone layout structure."""
+
+    @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+    def test_main_window_has_top_bar_zone(self, qtbot, app):
+        """Test that top bar zone QFrame exists with correct object name."""
+        window = MainWindow()
+        assert hasattr(window, 'top_bar_zone')
+        assert window.top_bar_zone.objectName() == "topBarZone"
+
+    @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+    def test_main_window_has_center_zone(self, qtbot, app):
+        """Test that center zone QFrame exists with correct object name."""
+        window = MainWindow()
+        assert hasattr(window, 'center_zone')
+        assert window.center_zone.objectName() == "centerZone"
+
+    @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+    def test_main_window_has_bottom_bar_zone(self, qtbot, app):
+        """Test that bottom bar zone QFrame exists with correct object name."""
+        window = MainWindow()
+        assert hasattr(window, 'bottom_bar_zone')
+        assert window.bottom_bar_zone.objectName() == "bottomBarZone"
+
+    @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+    def test_download_button_in_bottom_zone(self, qtbot, app):
+        """Test that download button is a child of the bottom bar zone."""
+        window = MainWindow()
+        assert window.download_button.parent() == window.bottom_bar_zone
+
+    @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+    def test_stop_button_in_bottom_zone(self, qtbot, app):
+        """Test that stop button is a child of the bottom bar zone."""
+        window = MainWindow()
+        assert window.stop_download_button.parent() == window.bottom_bar_zone
+
+    @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+    def test_settings_button_in_top_zone(self, qtbot, app):
+        """Test that settings button is a child of the top bar zone."""
+        window = MainWindow()
+        assert window.settings_button.parent() == window.top_bar_zone
+
+    @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+    def test_tab_widget_in_center_zone(self, qtbot, app):
+        """Test that tab widget is a child of the center zone."""
+        window = MainWindow()
+        assert window.tab_widget.parent() == window.center_zone
+
+    @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+    def test_select_all_checkbox_in_downloads_tab(self, qtbot, app):
+        """Test that Select All checkbox is in the Downloads tab, not at top level."""
+        window = MainWindow()
+        # The checkbox should be a child of the downloads tab widget, not the main window directly
+        downloads_tab = window.tab_widget.widget(0)
+        assert window.select_all_checkbox.parent() == downloads_tab
+
+    @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+    def test_url_input_in_top_zone(self, qtbot, app):
+        """Test that URL input is a child of the top bar zone."""
+        window = MainWindow()
+        assert window.url_input.parent() == window.top_bar_zone
+
+    @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+    def test_clear_buttons_in_bottom_zone(self, qtbot, app):
+        """Test that clear buttons are children of the bottom bar zone."""
+        window = MainWindow()
+        assert window.clear_completed_button.parent() == window.bottom_bar_zone
+        assert window.clear_all_button.parent() == window.bottom_bar_zone
+
+    @patch('nexus_downloader.ui.main_window.DownloadManager', new=MockDownloadManager)
+    def test_open_folder_button_in_bottom_zone(self, qtbot, app):
+        """Test that open folder button is a child of the bottom bar zone."""
+        window = MainWindow()
+        assert window.open_folder_button.parent() == window.bottom_bar_zone
+
+
+class TestStylesheetZones:
+    """Tests for zone styling in stylesheet."""
+
+    def test_stylesheet_contains_zone_styling(self):
+        """Test that stylesheet contains zone container selectors."""
+        from nexus_downloader.ui.theme.styles import get_application_stylesheet
+        stylesheet = get_application_stylesheet()
+        assert "QFrame#topBarZone" in stylesheet
+        assert "QFrame#centerZone" in stylesheet
+        assert "QFrame#bottomBarZone" in stylesheet
+
+    def test_stylesheet_zone_backgrounds(self):
+        """Test that zone styles include background colors."""
+        from nexus_downloader.ui.theme.styles import get_application_stylesheet
+        from nexus_downloader.ui.theme.colors import BG_PRIMARY, BG_SECONDARY
+        stylesheet = get_application_stylesheet()
+        # Top and bottom bars should use BG_SECONDARY
+        assert BG_SECONDARY in stylesheet
+        # Center zone should use BG_PRIMARY
+        assert BG_PRIMARY in stylesheet
+
+    def test_stylesheet_zone_borders(self):
+        """Test that zone styles include border definitions."""
+        from nexus_downloader.ui.theme.styles import get_application_stylesheet
+        stylesheet = get_application_stylesheet()
+        assert "border-bottom: 1px solid" in stylesheet
+        assert "border-top: 1px solid" in stylesheet
